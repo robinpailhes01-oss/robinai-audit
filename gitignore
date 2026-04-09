@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+
+# Production
+*.log
+npm-debug.log*
+
+# Misc
+.DS_Store
+.vscode/
+.idea/
+
+# Environment variables (NEVER COMMIT)
+.env
+.env.local
+.env*.local
+
+# Vercel
+.vercel
