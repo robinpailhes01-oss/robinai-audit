@@ -1,4 +1,15 @@
-export default async function handler(req, res) {
+e        if (process.env.RESEND_API_KEY) {
+      try {
+        await sendEmailViaResend(data, emailHtml);
+        console.log(`📧 Email envoyé à ${data.email}`);
+      } catch (e) {
+        console.log(`⚠️ Resend non configuré ou erreur (non bloquant):`, e.message);
+      }
+    } else {
+      console.log(`⚠️ RESEND_API_KEY non définie - email skippé`);
+    }
+
+xport default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
