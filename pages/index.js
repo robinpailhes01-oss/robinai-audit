@@ -634,6 +634,106 @@ function LoadingScreen() {
   );
 }
 
+
+function ContactBlock({ businessName }) {
+  const [answer, setAnswer] = useState(null);
+  const [contact, setContact] = useState("");
+  const [sent, setSent] = useState(false);
+
+  async function handleSend() {
+    if (!contact.trim()) return;
+    try {
+      await fetch("/api/contact-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_name: businessName, contact, answer }),
+      });
+    } catch (e) {}
+    setSent(true);
+  }
+
+  return (
+    <div className="no-print" style={{ marginBottom: 40, padding: "50px 40px", background: "linear-gradient(135deg, rgba(201, 162, 89, 0.08) 0%, rgba(201, 162, 89, 0.02) 100%)", border: "1px solid rgba(201, 162, 89, 0.3)", animation: "fadeInUp 1s ease-out 1.2s both" }}>
+      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(24px, 3.5vw, 34px)", color: "#f5e9d0", margin: 0, marginBottom: 12, fontWeight: 400 }}>
+        <em>Tu veux être recontacté par Robin&nbsp;?</em>
+      </h3>
+      <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: "rgba(245, 233, 208, 0.6)", margin: 0, marginBottom: 32, fontStyle: "italic" }}>
+        Zéro engagement — juste un échange entre entrepreneurs nautiques.
+      </p>
+      {!sent ? (
+        <>
+          {answer === null && (
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={() => setAnswer("oui")} style={{
+                padding: "18px 56px", border: "1px solid rgba(201, 162, 89, 0.6)",
+                background: "transparent", color: "#c9a259", cursor: "pointer", borderRadius: 2,
+                fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 500,
+                letterSpacing: "0.15em", transition: "all 0.3s",
+              }}>OUI</button>
+              <button onClick={() => setAnswer("non")} style={{
+                padding: "18px 56px", border: "1px solid rgba(245, 233, 208, 0.15)",
+                background: "transparent", color: "rgba(245, 233, 208, 0.4)", cursor: "pointer", borderRadius: 2,
+                fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400,
+                letterSpacing: "0.15em", transition: "all 0.3s",
+              }}>NON</button>
+            </div>
+          )}
+          {answer === "oui" && (
+            <div style={{ maxWidth: 480, margin: "0 auto" }}>
+              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: "#c9a259", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 12 }}>
+                Ton Instagram ou WhatsApp
+              </p>
+              <input
+                type="text"
+                value={contact}
+                onChange={e => setContact(e.target.value)}
+                placeholder="@toncompte ou +33 6 XX XX XX XX"
+                autoFocus
+                onKeyDown={e => { if (e.key === "Enter" && contact.trim()) handleSend(); }}
+                style={{
+                  width: "100%", padding: "16px 20px", boxSizing: "border-box",
+                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201, 162, 89, 0.4)",
+                  borderRadius: 2, color: "#f5e9d0",
+                  fontFamily: "'Cormorant Garamond', serif", fontSize: 18,
+                  outline: "none", marginBottom: 16,
+                }}
+              />
+              <button onClick={handleSend} disabled={!contact.trim()} style={{
+                width: "100%", padding: "18px",
+                background: contact.trim() ? "linear-gradient(135deg, #c9a259 0%, #a8863e 100%)" : "rgba(201,162,89,0.15)",
+                color: contact.trim() ? "#050f1c" : "rgba(245,233,208,0.4)",
+                border: "none", borderRadius: 2,
+                cursor: contact.trim() ? "pointer" : "not-allowed",
+                fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600,
+                letterSpacing: "0.25em", textTransform: "uppercase", transition: "all 0.3s",
+              }}>
+                Envoyer →
+              </button>
+              <button onClick={() => setAnswer(null)} style={{
+                display: "block", margin: "12px auto 0", background: "transparent", border: "none",
+                color: "rgba(245,233,208,0.35)", cursor: "pointer",
+                fontFamily: "'Cormorant Garamond', serif", fontSize: 14, fontStyle: "italic",
+              }}>← Retour</button>
+            </div>
+          )}
+          {answer === "non" && (
+            <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "rgba(245,233,208,0.6)", textAlign: "center", fontStyle: "italic", margin: 0 }}>
+              Pas de souci — ton analyse reste disponible ici. Bonne saison&nbsp;! ⛵
+            </p>
+          )}
+        </>
+      ) : (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⛵</div>
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: "#c9a259", fontStyle: "italic", margin: 0 }}>
+            Reçu&nbsp;! Robin te contacte sous 24h.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ResultsPage({ data, analysis, onRestart }) {
   const [animatedScore, setAnimatedScore] = useState(0);
   const [animatedLeads, setAnimatedLeads] = useState(0);
@@ -664,7 +764,6 @@ function ResultsPage({ data, analysis, onRestart }) {
   }, [analysis]);
 
   const scoreColor = analysis.maturity_score < 30 ? "#ef4444" : analysis.maturity_score < 60 ? "#f59e0b" : "#10b981";
-  const calendlyUrl = "https://calendly.com/robinai/decouverte";
   const displayName = data.first_name && data.first_name !== "Prospect" ? data.first_name : null;
 
   function handlePrint() {
@@ -747,25 +846,7 @@ function ResultsPage({ data, analysis, onRestart }) {
             <p style={{ marginTop: 20, marginBottom: 0, color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 17 }}>— Robin</p>
           </div>
 
-          <div className="no-print" style={{ marginBottom: 40, padding: "60px 40px", textAlign: "center", background: "linear-gradient(135deg, rgba(201, 162, 89, 0.08) 0%, rgba(201, 162, 89, 0.02) 100%)", border: "1px solid rgba(201, 162, 89, 0.3)", animation: "fadeInUp 1s ease-out 1.2s both" }}>
-            <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(28px, 4vw, 38px)", color: "#f5e9d0", margin: 0, marginBottom: 20, fontWeight: 400 }}>
-              <em>Envie qu&apos;on en discute ensemble&nbsp;?</em>
-            </h3>
-            <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "rgba(245, 233, 208, 0.7)", margin: 0, marginBottom: 32, lineHeight: 1.6 }}>
-              30 minutes de visio, gratuites et sans engagement.<br />
-              On regarde ton business ensemble et je te montre concrètement ce que j&apos;ai mis en place pour le mien.
-            </p>
-            <a href={calendlyUrl} target="_blank" rel="noopener noreferrer" style={{
-              display: "inline-block",
-              background: "linear-gradient(135deg, #c9a259 0%, #a8863e 100%)",
-              color: "#050f1c", textDecoration: "none", padding: "22px 56px",
-              fontFamily: "'Cormorant Garamond', serif", fontSize: 16, fontWeight: 600,
-              letterSpacing: "0.25em", textTransform: "uppercase",
-              boxShadow: "0 10px 40px rgba(201, 162, 89, 0.4)",
-            }}>
-              Réserver un créneau →
-            </a>
-          </div>
+          <ContactBlock businessName={data.business_name} />
 
           <div className="no-print" style={{ textAlign: "center", marginBottom: 60 }}>
             <button onClick={handlePrint} style={{

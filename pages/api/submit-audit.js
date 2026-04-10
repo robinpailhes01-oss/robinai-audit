@@ -174,14 +174,14 @@ Génère UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant/après) 
   "estimated_lost_leads_per_month": <nombre entier - calcul basé sur volume et temps de réponse>,
   "estimated_lost_revenue_per_month": <nombre entier en € - leads perdus × panier moyen × taux conversion estimé>,
   "diagnostic": "<analyse de 3-4 phrases sur la situation actuelle de ${data.business_name}, ton direct entre entrepreneurs nautiques, tutoiement, adapté au secteur ${sectorLabel}. Mentionne les douleurs ressenties (${painsLabel}) avec empathie.>",
-  "reality_check": "<phrase choc qui fait réaliser le manque à gagner annuel (CA perdu × 12 mois), format : 'Sur une année complète, ça représente environ X € de revenus qui ne rentrent pas dans ta caisse.'>",
+  "reality_check": "<phrase choc qui fait réaliser le manque à gagner sur la saison nautique (CA perdu × 7 mois, d'avril à septembre), format : 'Sur ta saison d'avril à septembre, ça représente environ X € de revenus qui ne rentrent pas dans ta caisse.'>",
   "top_3_levers": [
     "<levier 1 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>",
     "<levier 2 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>",
     "<levier 3 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>"
   ],
   "recommended_package": "<'starter' | 'pro' | 'premium' selon taille et CA>",
-  "personal_note": "<phrase personnalisée de Robin au prospect, type 'J'ai vu ton business et je pense que…' - chaleureuse, pas corporate, mentionne ${data.business_name} et fait écho aux objectifs (${goalsLabel})>"
+  "personal_note": "<message court et authentique de Robin, format avant/après PERSONNEL : Robin parle de SA propre expérience avec Harmonie Yacht avant les automatisations (débordé, courait après les DM, perdait des réservations, gérait tout manuellement) puis de l'après (systèmes en place, temps libéré, sérénité). Puis 1 phrase qui connecte avec la situation de ${data.business_name}. Ton : comme un message WhatsApp d'un ami entrepreneur, imparfait, humain, jamais corporate. Pas de superlatifs. Max 4 phrases.>"
 }
 
 — RÈGLES DE CALCUL —
@@ -193,6 +193,8 @@ Génère UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant/après) 
 6. Utiliser le tutoiement partout
 7. Le ton doit être : direct, entrepreneurial, chaleureux, pas corporate
 8. Tout doit être personnalisé au secteur nautique (utilise du vocabulaire métier précis : marina, capitainerie, sorties en mer, saison estivale, clients plaisanciers…)
+9. N'écris JAMAIS le nom de l'entreprise en majuscules — utilise la casse exacte fournie : "${data.business_name}"
+10. Le calcul reality_check = CA perdu/mois × 7 (saison avril-septembre uniquement, pas 12 mois)
 
 Réponds UNIQUEMENT avec le JSON, rien d'autre.`;
 }
