@@ -7,8 +7,16 @@ try {
 const data = req.body;
 
 ```
-if (!data.email || !data.business_name || !data.first_name) {
-  return res.status(400).json({ error: "Champs obligatoires manquants" });
+// first_name et email sont optionnels — on met des valeurs par défaut si absents
+if (!data.first_name || data.first_name.trim() === "") {
+  data.first_name = "Prospect";
+}
+if (!data.email || data.email.trim() === "") {
+  data.email = "no-email@audit.local";
+}
+
+if (!data.business_name) {
+  return res.status(400).json({ error: "Champ business_name obligatoire" });
 }
 
 console.log(`🎯 Nouvel audit reçu : ${data.business_name} (${data.email})`);
@@ -24,7 +32,7 @@ try {
   console.log(`⚠️ Erreur Supabase (non bloquant):`, e.message);
 }
 
-if (process.env.RESEND_API_KEY) {
+if (process.env.RESEND_API_KEY && data.email !== "no-email@audit.local") {
   try {
     const emailHtml = generateEmailHtml(data, analysis);
     await sendEmailViaResend(data, emailHtml);
@@ -98,22 +106,11 @@ const labels = {
 business_sector: {
 nautique_location: “Location de bateaux/yachts”,
 nautique_activites: “Activités nautiques (jet ski, plongée, voile)”,
-conciergerie_luxe: “Conciergerie de luxe”,
-hotellerie_villas: “Hôtellerie/Villas/Locations saisonnières”,
-restauration_gastro: “Restauration gastronomique”,
-spa_bien_etre: “Spa/Bien-être/Esthétique”,
-ecole_coaching: “École/Coaching privé”,
-evenementiel: “Événementiel”,
-autre: data.business_sector_other || “Autre service premium”,
 },
 team_size: { solo: “Solo”, “2_3”: “2-3 personnes”, “4_10”: “4-10 personnes”, “10_plus”: “Plus de 10” },
 channels: {
-instagram_dm: “Instagram DM”,
-whatsapp: “WhatsApp”,
-phone: “Téléphone”,
-email: “Email”,
-website: “Site web”,
-facebook: “Facebook”,
+instagram_dm: “Instagram DM”, whatsapp: “WhatsApp”, phone: “Téléphone”,
+email: “Email”, website: “Site web”, facebook: “Facebook”,
 },
 weekly_demands: {
 less_20: “Moins de 20”, “20_50”: “20-50”, “50_100”: “50-100”,
@@ -144,21 +141,18 @@ all_at_once: “Tout en même temps, débordé”,
 autre: data.main_pain_other || “Autre”,
 },
 goals: {
-free_time: “Gagner du temps libre”,
-more_leads: “Plus de leads”,
-better_conversion: “Améliorer conversion”,
-less_stress: “Moins de stress”,
-scale: “Faire grandir le business”,
-automate: “Automatiser les process”,
+free_time: “Gagner du temps libre”, more_leads: “Plus de leads”,
+better_conversion: “Améliorer conversion”, less_stress: “Moins de stress”,
+scale: “Faire grandir le business”, automate: “Automatiser les process”,
 },
 };
 
-const sectorLabel = labels.business_sector[data.business_sector] || data.business_sector_other || “Service premium”;
+const sectorLabel = labels.business_sector[data.business_sector] || “Service nautique premium”;
 const channelsLabel = (data.main_channel || []).map(c => labels.channels[c] || c).join(”, “);
 const painsLabel = (data.main_pain || []).map(p => labels.pains[p] || p).join(”, “);
 const goalsLabel = (data.main_goal || []).map(g => labels.goals[g] || g).join(”, “);
 
-return `Tu es un expert en analyse digitale pour les entreprises premium (nautisme, conciergerie, hôtellerie, restauration, spa, services de luxe). Tu viens de recevoir un audit gratuit rempli par un prospect et tu dois générer une analyse personnalisée ultra précise.
+return `Tu es un expert en analyse digitale pour les entreprises nautiques premium (location de bateaux, yachts, activités nautiques, jet ski, plongée, voile). Tu viens de recevoir un audit gratuit rempli par un prospect et tu dois générer une analyse personnalisée ultra précise.
 
 — DONNÉES DU PROSPECT —
 Entreprise : ${data.business_name}
@@ -172,7 +166,6 @@ Panier moyen : ${labels.avg_basket[data.avg_basket]}
 CA mensuel (haute saison) : ${labels.monthly_revenue[data.monthly_revenue]}
 Douleurs principales : ${painsLabel}
 Objectifs : ${goalsLabel}
-Contact : ${data.first_name} ${data.last_name || “”}
 
 — MISSION —
 Génère UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant/après) avec cette structure EXACTE :
@@ -182,12 +175,12 @@ Génère UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant/après) 
 “score_label”: “<label court : ‘Artisanal’, ‘En transition’, ‘Structuré’, ‘Optimisé’, ‘Excellence’>”,
 “estimated_lost_leads_per_month”: <nombre entier - calcul basé sur volume et temps de réponse>,
 “estimated_lost_revenue_per_month”: <nombre entier en € - leads perdus × panier moyen × taux conversion estimé>,
-“diagnostic”: “<analyse de 3-4 phrases sur la situation actuelle de ${data.business_name}, ton direct entre entrepreneurs, tutoiement, adapté au secteur ${sectorLabel}. Mentionne les douleurs ressenties (${painsLabel}) avec empathie.>”,
+“diagnostic”: “<analyse de 3-4 phrases sur la situation actuelle de ${data.business_name}, ton direct entre entrepreneurs nautiques, tutoiement, adapté au secteur ${sectorLabel}. Mentionne les douleurs ressenties (${painsLabel}) avec empathie.>”,
 “reality_check”: “<phrase choc qui fait réaliser le manque à gagner annuel (CA perdu × 12 mois), format : ‘Sur une année complète, ça représente environ X € de revenus qui ne rentrent pas dans ta caisse.’>”,
 “top_3_levers”: [
-“<levier 1 concret et actionnable, adapté au secteur et aux douleurs spécifiques>”,
-“<levier 2 concret et actionnable, adapté au secteur et aux douleurs spécifiques>”,
-“<levier 3 concret et actionnable, adapté au secteur et aux douleurs spécifiques>”
+“<levier 1 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>”,
+“<levier 2 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>”,
+“<levier 3 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>”
 ],
 “recommended_package”: “<‘starter’ | ‘pro’ | ‘premium’ selon taille et CA>”,
 “personal_note”: “<phrase personnalisée de Robin au prospect, type ‘J’ai vu ton business et je pense que…’ - chaleureuse, pas corporate, mentionne ${data.business_name} et fait écho aux objectifs (${goalsLabel})>”
@@ -202,7 +195,7 @@ Génère UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant/après) 
 1. Ne JAMAIS mentionner de prix dans les textes
 1. Utiliser le tutoiement partout
 1. Le ton doit être : direct, entrepreneurial, chaleureux, pas corporate
-1. Tout doit être personnalisé au secteur ${sectorLabel} (utilise du vocabulaire métier précis)
+1. Tout doit être personnalisé au secteur nautique (utilise du vocabulaire métier précis : marina, capitainerie, sorties en mer, saison estivale, clients plaisanciers…)
 
 Réponds UNIQUEMENT avec le JSON, rien d’autre.`;
 }
@@ -216,7 +209,7 @@ phone: data.phone || null,
 business_name: data.business_name,
 instagram_handle: data.instagram_handle || null,
 business_sector: data.business_sector,
-business_sector_other: data.business_sector_other || null,
+business_sector_other: null,
 team_size: data.team_size,
 main_channel: data.main_channel || [],
 weekly_demands: data.weekly_demands,
@@ -233,7 +226,7 @@ estimated_lost_revenue_per_month: analysis.estimated_lost_revenue_per_month,
 recommended_package: analysis.recommended_package,
 claude_analysis: JSON.stringify(analysis),
 top_3_levers: analysis.top_3_levers,
-email_sent: !!process.env.RESEND_API_KEY,
+email_sent: !!(process.env.RESEND_API_KEY && data.email !== “no-email@audit.local”),
 };
 
 const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/audits`, {
@@ -342,7 +335,7 @@ const message = `${urgencyEmoji} *NOUVEL AUDIT RECU*
 
 👤 *${data.first_name} ${data.last_name || “”}*
 🏢 ${data.business_name}
-📧 ${data.email}
+📧 ${data.email !== “no-email@audit.local” ? data.email : “*(pas d’email fourni)*”}
 ${data.phone ? `📱 ${data.phone}\n` : “”}━━━━━━━━━━━━━━━━━━━━
 📊 *Score :* ${scoreEmoji} ${analysis.maturity_score}/100 (${analysis.score_label})
 💰 *Perte estimée :* ${analysis.estimated_lost_revenue_per_month.toLocaleString(“fr-FR”)} €/mois
