@@ -5,13 +5,6 @@ const API_ENDPOINT = “/api/submit-audit”;
 const SECTORS = [
 { value: “nautique_location”, label: “Location de bateaux / yachts”, icon: “⛵” },
 { value: “nautique_activites”, label: “Activités nautiques (jet ski, plongée, voile…)”, icon: “🏄” },
-{ value: “conciergerie_luxe”, label: “Conciergerie de luxe”, icon: “🔑” },
-{ value: “hotellerie_villas”, label: “Hôtellerie / Villas / Locations saisonnières”, icon: “🏛️” },
-{ value: “restauration_gastro”, label: “Restauration gastronomique”, icon: “🍽️” },
-{ value: “spa_bien_etre”, label: “Spa / Bien-être / Esthétique”, icon: “✨” },
-{ value: “ecole_coaching”, label: “École / Coaching privé”, icon: “📚” },
-{ value: “evenementiel”, label: “Événementiel / Organisation”, icon: “🎭” },
-{ value: “autre”, label: “Autre — précisez”, icon: “💎”, isOther: true },
 ];
 
 const TEAM_SIZES = [
@@ -176,24 +169,6 @@ display: “flex”, alignItems: “center”, justifyContent: “center”, fle
 );
 }
 
-function TextField({ label, value, onChange, placeholder, type = “text”, required }) {
-return (
-<div style={{ marginBottom: 22 }}>
-<label style={{ display: “block”, fontFamily: “‘Cormorant Garamond’, serif”, fontSize: 12, color: “#c9a259”, letterSpacing: “0.2em”, textTransform: “uppercase”, marginBottom: 8 }}>
-{label} {required && <span style={{ color: “#e9d4a3” }}>*</span>}
-</label>
-<input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{
-width: “100%”, padding: “14px 18px”,
-background: “rgba(255, 255, 255, 0.03)”,
-border: “1px solid rgba(201, 162, 89, 0.2)”,
-borderRadius: 2, color: “#f5e9d0”,
-fontFamily: “‘Cormorant Garamond’, serif”, fontSize: 17, letterSpacing: “0.01em”,
-outline: “none”, transition: “all 0.3s”, boxSizing: “border-box”,
-}} />
-</div>
-);
-}
-
 function NextButton({ onClick, disabled, label = “Continuer” }) {
 return (
 <button onClick={onClick} disabled={disabled} style={{
@@ -232,7 +207,7 @@ return (
       </div>
 
       <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(42px, 7vw, 82px)", fontWeight: 400, lineHeight: 1.05, color: "#f5e9d0", margin: 0, marginBottom: 32, letterSpacing: "-0.02em" }}>
-        Combien votre <em style={{ color: "#c9a259", fontStyle: "italic" }}>business premium</em> perd-il de clients chaque mois&nbsp;?
+        Combien votre <em style={{ color: "#c9a259", fontStyle: "italic" }}>business nautique</em> perd-il de clients chaque mois&nbsp;?
       </h1>
 
       <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(18px, 2vw, 22px)", lineHeight: 1.6, color: "rgba(245, 233, 208, 0.75)", marginBottom: 48, maxWidth: 700, fontWeight: 300 }}>
@@ -250,7 +225,7 @@ return (
           transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
           boxShadow: "0 10px 40px rgba(201, 162, 89, 0.3)",
         }}>
-          Démarrer l'audit →
+          Démarrer l&apos;audit →
         </button>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: "rgba(245, 233, 208, 0.5)", letterSpacing: "0.05em" }}>~ 5 minutes</span>
@@ -262,7 +237,7 @@ return (
     <div style={{ paddingTop: 60, display: "flex", gap: 60, flexWrap: "wrap", borderTop: "1px solid rgba(201, 162, 89, 0.12)", marginTop: 60 }}>
       {[
         { label: "Analyse IA", value: "Par Claude" },
-        { label: "Secteurs couverts", value: "Premium & Luxe" },
+        { label: "Secteurs couverts", value: "Nautique" },
         { label: "Durée", value: "5 minutes" },
         { label: "Tarif", value: "Offert" },
       ].map((stat, i) => (
@@ -288,10 +263,7 @@ return (
 );
 }
 
-function SingleSelectStep({ title, subtitle, options, value, otherValue, onChange, onOtherChange, onNext, autoAdvance, otherPlaceholder }) {
-const selectedOption = options.find(o => o.value === value);
-const isOtherSelected = selectedOption?.isOther;
-
+function SingleSelectStep({ title, subtitle, options, value, onChange, onNext, autoAdvance }) {
 return (
 <div>
 <StepHeader title={title} subtitle={subtitle} />
@@ -303,41 +275,20 @@ option={opt}
 selected={value === opt.value}
 onClick={() => {
 onChange(opt.value);
-if (autoAdvance && !opt.isOther) {
-setTimeout(onNext, 300);
-}
+if (autoAdvance) setTimeout(onNext, 300);
 }}
 />
 ))}
 </div>
-{isOtherSelected && onOtherChange && (
-<div style={{ marginTop: 20 }}>
-<input
-type=“text”
-value={otherValue || “”}
-onChange={e => onOtherChange(e.target.value)}
-placeholder={otherPlaceholder}
-autoFocus
-style={{
-width: “100%”, padding: “16px 20px”,
-background: “rgba(255, 255, 255, 0.04)”,
-border: “1px solid rgba(201, 162, 89, 0.4)”,
-borderRadius: 2, color: “#f5e9d0”,
-fontFamily: “‘Cormorant Garamond’, serif”, fontSize: 17,
-outline: “none”, boxSizing: “border-box”,
-}}
-/>
-</div>
-)}
-{(!autoAdvance || isOtherSelected) && (
-<NextButton onClick={onNext} disabled={!value || (isOtherSelected && !otherValue)} />
-)}
+{!autoAdvance && <NextButton onClick={onNext} disabled={!value} />}
 </div>
 );
 }
 
-function MultiSelectStep({ title, subtitle, options, values, otherValue, onToggle, onOtherChange, onNext, canProceed, otherPlaceholder }) {
+function MultiSelectStep({ title, subtitle, options, values, otherValue, onToggle, onOtherChange, onNext, canProceed, otherPlaceholder, submitLabel, loading }) {
 const isOtherSelected = values.includes(“autre”);
+const btnLabel = submitLabel || “Continuer”;
+const isDisabled = !canProceed || (isOtherSelected && !otherValue) || loading;
 
 return (
 <div>
@@ -372,7 +323,22 @@ outline: “none”, boxSizing: “border-box”,
 />
 </div>
 )}
-<NextButton onClick={onNext} disabled={!canProceed || (isOtherSelected && !otherValue)} />
+<button
+onClick={onNext}
+disabled={isDisabled}
+style={{
+width: “100%”, marginTop: 24,
+background: !isDisabled ? “linear-gradient(135deg, #c9a259 0%, #a8863e 100%)” : “rgba(201, 162, 89, 0.15)”,
+color: !isDisabled ? “#050f1c” : “rgba(245, 233, 208, 0.4)”,
+border: “none”, padding: “20px”, borderRadius: 2,
+fontFamily: “‘Cormorant Garamond’, serif”, fontSize: 15, fontWeight: 600,
+letterSpacing: “0.25em”, textTransform: “uppercase”,
+cursor: !isDisabled ? “pointer” : “not-allowed”,
+transition: “all 0.4s”,
+boxShadow: !isDisabled ? “0 10px 40px rgba(201, 162, 89, 0.3)” : “none”,
+}}>
+{loading ? “Analyse en cours…” : `${btnLabel} →`}
+</button>
 </div>
 );
 }
@@ -402,49 +368,10 @@ outline: “none”, boxSizing: “border-box”,
 );
 }
 
-function FinalStep({ data, updateField, onSubmit, loading }) {
-const canProceed = data.first_name && data.email;
-return (
-<div>
-<StepHeader
-title={<>Où vous envoyer votre <em style={{ color: “#c9a259” }}>résultat</em> ?</>}
-subtitle=“Votre rapport personnalisé s’affichera immédiatement après validation.”
-/>
-<div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 16 }}>
-<TextField label=“Prénom” value={data.first_name} onChange={v => updateField(“first_name”, v)} placeholder=“Jean” required />
-<TextField label=“Nom” value={data.last_name} onChange={v => updateField(“last_name”, v)} placeholder=“Dupont” />
-</div>
-<TextField label=“Email professionnel” value={data.email} onChange={v => updateField(“email”, v)} placeholder=“jean@monentreprise.com” type=“email” required />
-<TextField label=“Téléphone (optionnel)” value={data.phone} onChange={v => updateField(“phone”, v)} placeholder=“06 12 34 56 78” type=“tel” />
-<TextField label=“Compte Instagram (optionnel)” value={data.instagram_handle} onChange={v => updateField(“instagram_handle”, v)} placeholder=”@monentreprise” />
-
-```
-  <button onClick={onSubmit} disabled={!canProceed || loading} style={{
-    width: "100%", marginTop: 28,
-    background: canProceed ? "linear-gradient(135deg, #c9a259 0%, #a8863e 100%)" : "rgba(201, 162, 89, 0.15)",
-    color: canProceed ? "#050f1c" : "rgba(245, 233, 208, 0.4)",
-    border: "none", padding: "22px", borderRadius: 2,
-    fontFamily: "'Cormorant Garamond', serif", fontSize: 16, fontWeight: 600,
-    letterSpacing: "0.25em", textTransform: "uppercase",
-    cursor: canProceed && !loading ? "pointer" : "not-allowed",
-    transition: "all 0.4s", boxShadow: canProceed ? "0 10px 40px rgba(201, 162, 89, 0.3)" : "none",
-  }}>
-    {loading ? "Analyse en cours..." : "Voir mon résultat →"}
-  </button>
-  <p style={{ textAlign: "center", marginTop: 20, fontFamily: "'Cormorant Garamond', serif", fontSize: 13, color: "rgba(245, 233, 208, 0.4)", fontStyle: "italic" }}>
-    Vos données restent strictement confidentielles et ne sont jamais partagées.
-  </p>
-</div>
-```
-
-);
-}
-
 function AuditForm({ onSubmit, onBack }) {
 const [step, setStep] = useState(1);
 const [data, setData] = useState({
 business_sector: “”,
-business_sector_other: “”,
 business_name: “”,
 team_size: “”,
 main_channel: [],
@@ -456,15 +383,10 @@ monthly_revenue: “”,
 main_pain: [],
 main_pain_other: “”,
 main_goal: [],
-first_name: “”,
-last_name: “”,
-email: “”,
-phone: “”,
-instagram_handle: “”,
 });
 const [loading, setLoading] = useState(false);
 
-const totalSteps = 12;
+const totalSteps = 11;
 
 function updateField(key, value) {
 setData(d => ({ …d, [key]: value }));
@@ -473,9 +395,7 @@ setData(d => ({ …d, [key]: value }));
 function toggleMulti(key, value) {
 setData(d => {
 const current = d[key] || [];
-if (current.includes(value)) {
-return { …d, [key]: current.filter(v => v !== value) };
-}
+if (current.includes(value)) return { …d, [key]: current.filter(v => v !== value) };
 return { …d, [key]: […current, value] };
 });
 }
@@ -521,11 +441,9 @@ title=“Quelle est votre activité ?”
 subtitle=“Afin de personnaliser précisément votre analyse.”
 options={SECTORS}
 value={data.business_sector}
-otherValue={data.business_sector_other}
 onChange={v => updateField(“business_sector”, v)}
-onOtherChange={v => updateField(“business_sector_other”, v)}
 onNext={nextStep}
-otherPlaceholder=“Décrivez votre activité…”
+autoAdvance
 />
 );
 case 2:
@@ -535,7 +453,7 @@ title=“Comment s’appelle votre entreprise ?”
 subtitle=“Pour personnaliser votre rapport d’audit.”
 value={data.business_name}
 onChange={v => updateField(“business_name”, v)}
-placeholder=“Yacht Évasion Cannes”
+placeholder=“Yacht Évasion Carnon”
 onNext={nextStep}
 canProceed={!!data.business_name.trim()}
 />
@@ -643,17 +561,15 @@ case 11:
 return (
 <MultiSelectStep
 title=“Vos objectifs principaux cette année ?”
-subtitle=“Plusieurs choix possibles.”
+subtitle=“Sélectionnez vos priorités — l’analyse sera générée instantanément.”
 options={MAIN_GOALS}
 values={data.main_goal}
 onToggle={v => toggleMulti(“main_goal”, v)}
-onNext={nextStep}
+onNext={submitForm}
 canProceed={data.main_goal.length > 0}
+submitLabel=“Voir mon analyse”
+loading={loading}
 />
-);
-case 12:
-return (
-<FinalStep data={data} updateField={updateField} onSubmit={submitForm} loading={loading} />
 );
 default:
 return null;
@@ -733,20 +649,17 @@ useEffect(() => {
 const scoreTarget = analysis.maturity_score;
 const leadsTarget = analysis.estimated_lost_leads_per_month;
 const revenueTarget = analysis.estimated_lost_revenue_per_month;
-
-```
 const duration = 2000;
 const start = Date.now();
 
+```
 const animate = () => {
   const elapsed = Date.now() - start;
   const progress = Math.min(elapsed / duration, 1);
   const easeOut = 1 - Math.pow(1 - progress, 3);
-
   setAnimatedScore(Math.floor(scoreTarget * easeOut));
   setAnimatedLeads(Math.floor(leadsTarget * easeOut));
   setAnimatedRevenue(Math.floor(revenueTarget * easeOut));
-
   if (progress < 1) requestAnimationFrame(animate);
   else {
     setAnimatedScore(scoreTarget);
@@ -754,7 +667,6 @@ const animate = () => {
     setAnimatedRevenue(revenueTarget);
   }
 };
-
 setTimeout(() => requestAnimationFrame(animate), 400);
 ```
 
@@ -762,6 +674,7 @@ setTimeout(() => requestAnimationFrame(animate), 400);
 
 const scoreColor = analysis.maturity_score < 30 ? “#ef4444” : analysis.maturity_score < 60 ? “#f59e0b” : “#10b981”;
 const calendlyUrl = “https://calendly.com/robinai/decouverte”;
+const displayName = data.first_name && data.first_name !== “Prospect” ? data.first_name : null;
 
 function handlePrint() {
 if (typeof window !== “undefined”) window.print();
@@ -791,24 +704,17 @@ Nouveau test
           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12, color: "#c9a259", letterSpacing: "0.35em", textTransform: "uppercase" }}>Votre rapport personnalisé</span>
         </div>
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 400, color: "#f5e9d0", margin: 0, marginBottom: 20, lineHeight: 1.1 }}>
-          Bonjour <em style={{ color: "#c9a259" }}>{data.first_name}</em>,
+          {displayName ? <>Bonjour <em style={{ color: "#c9a259" }}>{displayName}</em>,</> : <>Voici votre analyse</>}
         </h1>
         <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "rgba(245, 233, 208, 0.75)", lineHeight: 1.6, fontWeight: 300 }}>
-          Voici l'analyse complète de <strong style={{ color: "#c9a259" }}>{data.business_name}</strong>, basée sur les informations que tu m'as partagées.
+          Analyse complète de <strong style={{ color: "#c9a259" }}>{data.business_name}</strong>, basée sur vos réponses.
         </p>
       </div>
 
-      <div className="print-section" style={{
-        padding: "60px 40px", background: "rgba(201, 162, 89, 0.06)",
-        border: "1px solid rgba(201, 162, 89, 0.3)", marginBottom: 30,
-        textAlign: "center", animation: "fadeInUp 1s ease-out 0.2s both",
-      }}>
-        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 12, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 24 }}>
-          Score de Maturité Digitale
-        </div>
+      <div className="print-section" style={{ padding: "60px 40px", background: "rgba(201, 162, 89, 0.06)", border: "1px solid rgba(201, 162, 89, 0.3)", marginBottom: 30, textAlign: "center", animation: "fadeInUp 1s ease-out 0.2s both" }}>
+        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 12, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 24 }}>Score de Maturité Digitale</div>
         <div style={{ fontSize: "clamp(100px, 18vw, 180px)", fontWeight: 300, color: scoreColor, lineHeight: 1, fontFamily: "'Cormorant Garamond', serif", textShadow: `0 0 60px ${scoreColor}40` }}>
-          {animatedScore}
-          <span style={{ fontSize: "0.3em", color: "rgba(245, 233, 208, 0.4)", marginLeft: 8 }}>/100</span>
+          {animatedScore}<span style={{ fontSize: "0.3em", color: "rgba(245, 233, 208, 0.4)", marginLeft: 8 }}>/100</span>
         </div>
         <div style={{ marginTop: 24, color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontStyle: "italic" }}>
           « {analysis.score_label} »
@@ -817,75 +723,47 @@ Nouveau test
 
       <div className="print-section" style={{ marginBottom: 30, padding: "40px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(201, 162, 89, 0.15)", animation: "fadeInUp 1s ease-out 0.4s both" }}>
         <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 18 }}>◆ Diagnostic</div>
-        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, lineHeight: 1.7, color: "rgba(245, 233, 208, 0.9)", margin: 0 }}>
-          {analysis.diagnostic}
-        </p>
+        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, lineHeight: 1.7, color: "rgba(245, 233, 208, 0.9)", margin: 0 }}>{analysis.diagnostic}</p>
       </div>
 
       <div className="print-section" style={{ marginBottom: 30, padding: "40px", background: "rgba(239, 68, 68, 0.06)", borderLeft: "4px solid #c9a259", animation: "fadeInUp 1s ease-out 0.6s both" }}>
-        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 18 }}>
-          Ton manque à gagner estimé
-        </div>
+        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 18 }}>Ton manque à gagner estimé</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 30, marginBottom: 24 }}>
           <div>
-            <div style={{ fontSize: "clamp(48px, 7vw, 72px)", color: "#f5e9d0", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1, fontWeight: 300 }}>
-              {animatedLeads}
-            </div>
-            <div style={{ marginTop: 8, fontSize: 16, color: "rgba(245, 233, 208, 0.6)", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
-              leads perdus / mois
-            </div>
+            <div style={{ fontSize: "clamp(48px, 7vw, 72px)", color: "#f5e9d0", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1, fontWeight: 300 }}>{animatedLeads}</div>
+            <div style={{ marginTop: 8, fontSize: 16, color: "rgba(245, 233, 208, 0.6)", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>leads perdus / mois</div>
           </div>
           <div>
-            <div style={{ fontSize: "clamp(36px, 5.5vw, 56px)", color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1, fontWeight: 400 }}>
-              {animatedRevenue.toLocaleString("fr-FR")} €
-            </div>
-            <div style={{ marginTop: 8, fontSize: 16, color: "rgba(245, 233, 208, 0.6)", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
-              de CA manqué / mois
-            </div>
+            <div style={{ fontSize: "clamp(36px, 5.5vw, 56px)", color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1, fontWeight: 400 }}>{animatedRevenue.toLocaleString("fr-FR")} €</div>
+            <div style={{ marginTop: 8, fontSize: 16, color: "rgba(245, 233, 208, 0.6)", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>de CA manqué / mois</div>
           </div>
         </div>
-        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, lineHeight: 1.6, color: "rgba(245, 233, 208, 0.75)", margin: 0, fontStyle: "italic", paddingTop: 20, borderTop: "1px solid rgba(201, 162, 89, 0.15)" }}>
-          {analysis.reality_check}
-        </p>
+        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, lineHeight: 1.6, color: "rgba(245, 233, 208, 0.75)", margin: 0, fontStyle: "italic", paddingTop: 20, borderTop: "1px solid rgba(201, 162, 89, 0.15)" }}>{analysis.reality_check}</p>
       </div>
 
       <div className="print-section" style={{ marginBottom: 30, padding: "40px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(201, 162, 89, 0.15)", animation: "fadeInUp 1s ease-out 0.8s both" }}>
-        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 28 }}>
-          ◆ Tes 3 leviers prioritaires
-        </div>
+        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 28 }}>◆ Tes 3 leviers prioritaires</div>
         {analysis.top_3_levers.map((lever, i) => (
           <div key={i} style={{ display: "flex", gap: 24, marginBottom: 24, alignItems: "flex-start" }}>
-            <div style={{
-              flexShrink: 0, width: 50, height: 50, border: "1px solid #c9a259",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 400,
-            }}>
-              {i + 1}
-            </div>
-            <p style={{ flex: 1, margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 18, lineHeight: 1.6, color: "rgba(245, 233, 208, 0.9)", paddingTop: 10 }}>
-              {lever}
-            </p>
+            <div style={{ flexShrink: 0, width: 50, height: 50, border: "1px solid #c9a259", display: "flex", alignItems: "center", justifyContent: "center", color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 400 }}>{i + 1}</div>
+            <p style={{ flex: 1, margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 18, lineHeight: 1.6, color: "rgba(245, 233, 208, 0.9)", paddingTop: 10 }}>{lever}</p>
           </div>
         ))}
       </div>
 
       <div className="print-section" style={{ marginBottom: 30, padding: "40px", background: "rgba(201, 162, 89, 0.04)", border: "1px solid rgba(201, 162, 89, 0.15)", animation: "fadeInUp 1s ease-out 1s both" }}>
-        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 18 }}>
-          ✉ Un mot de Robin
-        </div>
-        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, lineHeight: 1.7, color: "rgba(245, 233, 208, 0.9)", margin: 0, fontStyle: "italic" }}>
-          {analysis.personal_note}
-        </p>
+        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 18 }}>✉ Un mot de Robin</div>
+        <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, lineHeight: 1.7, color: "rgba(245, 233, 208, 0.9)", margin: 0, fontStyle: "italic" }}>{analysis.personal_note}</p>
         <p style={{ marginTop: 20, marginBottom: 0, color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 17 }}>— Robin</p>
       </div>
 
       <div className="no-print" style={{ marginBottom: 40, padding: "60px 40px", textAlign: "center", background: "linear-gradient(135deg, rgba(201, 162, 89, 0.08) 0%, rgba(201, 162, 89, 0.02) 100%)", border: "1px solid rgba(201, 162, 89, 0.3)", animation: "fadeInUp 1s ease-out 1.2s both" }}>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(28px, 4vw, 38px)", color: "#f5e9d0", margin: 0, marginBottom: 20, fontWeight: 400 }}>
-          <em>Envie qu'on en discute ensemble&nbsp;?</em>
+          <em>Envie qu&apos;on en discute ensemble&nbsp;?</em>
         </h3>
         <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "rgba(245, 233, 208, 0.7)", margin: 0, marginBottom: 32, lineHeight: 1.6 }}>
           30 minutes de visio, gratuites et sans engagement.<br />
-          On regarde ton business ensemble et je te montre concrètement ce que j'ai mis en place pour le mien.
+          On regarde ton business ensemble et je te montre concrètement ce que j&apos;ai mis en place pour le mien.
         </p>
         <a href={calendlyUrl} target="_blank" rel="noopener noreferrer" style={{
           display: "inline-block",
@@ -911,9 +789,7 @@ Nouveau test
       </div>
 
       <div className="print-section" style={{ paddingTop: 40, borderTop: "1px solid rgba(201, 162, 89, 0.15)", textAlign: "center" }}>
-        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 12 }}>
-          RobinAI Consulting
-        </div>
+        <div style={{ color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 12 }}>RobinAI Consulting</div>
         <div style={{ color: "rgba(245, 233, 208, 0.4)", fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: "italic" }}>
           Fondé par Robin, également propriétaire de Harmonie Yacht (Port de Carnon, Montpellier)
         </div>
@@ -945,18 +821,9 @@ style.textContent = `
   ::selection { background: rgba(201, 162, 89, 0.3); color: #f5e9d0; }
   input::placeholder { color: rgba(245, 233, 208, 0.25); font-style: italic; }
   button:disabled { opacity: 0.5; }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 `;
 document.head.appendChild(style);
 ```
