@@ -1,158 +1,156 @@
 export default async function handler(req, res) {
-if (req.method !== “POST”) {
-return res.status(405).json({ error: “Method not allowed” });
-}
-
-try {
-const data = req.body;
-
-```
-// first_name et email sont optionnels — on met des valeurs par défaut si absents
-if (!data.first_name || data.first_name.trim() === "") {
-  data.first_name = "Prospect";
-}
-if (!data.email || data.email.trim() === "") {
-  data.email = "no-email@audit.local";
-}
-
-if (!data.business_name) {
-  return res.status(400).json({ error: "Champ business_name obligatoire" });
-}
-
-console.log(`🎯 Nouvel audit reçu : ${data.business_name} (${data.email})`);
-
-const analysis = await analyzeWithClaude(data);
-console.log(`🧠 Analyse Claude générée — Score: ${analysis.maturity_score}`);
-
-let savedAudit = null;
-try {
-  savedAudit = await saveToSupabase(data, analysis);
-  console.log(`💾 Sauvegardé dans Supabase — ID: ${savedAudit.id}`);
-} catch (e) {
-  console.log(`⚠️ Erreur Supabase (non bloquant):`, e.message);
-}
-
-if (process.env.RESEND_API_KEY && data.email !== "no-email@audit.local") {
-  try {
-    const emailHtml = generateEmailHtml(data, analysis);
-    await sendEmailViaResend(data, emailHtml);
-    console.log(`📧 Email envoyé à ${data.email}`);
-  } catch (e) {
-    console.log(`⚠️ Resend erreur (non bloquant):`, e.message);
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
-}
 
-if (process.env.TELEGRAM_BOT_TOKEN) {
   try {
-    await notifyTelegram(data, analysis);
-    console.log(`📱 Notification Telegram envoyée`);
-  } catch (e) {
-    console.log(`⚠️ Telegram erreur (non bloquant):`, e.message);
+    const data = req.body;
+
+    // first_name et email sont optionnels — on met des valeurs par défaut si absents
+    if (!data.first_name || data.first_name.trim() === "") {
+      data.first_name = "Prospect";
+    }
+    if (!data.email || data.email.trim() === "") {
+      data.email = "no-email@audit.local";
+    }
+
+    if (!data.business_name) {
+      return res.status(400).json({ error: "Champ business_name obligatoire" });
+    }
+
+    console.log(`🎯 Nouvel audit reçu : ${data.business_name} (${data.email})`);
+
+    const analysis = await analyzeWithClaude(data);
+    console.log(`🧠 Analyse Claude générée — Score: ${analysis.maturity_score}`);
+
+    let savedAudit = null;
+    try {
+      savedAudit = await saveToSupabase(data, analysis);
+      console.log(`💾 Sauvegardé dans Supabase — ID: ${savedAudit.id}`);
+    } catch (e) {
+      console.log(`⚠️ Erreur Supabase (non bloquant):`, e.message);
+    }
+
+    if (process.env.RESEND_API_KEY && data.email !== "no-email@audit.local") {
+      try {
+        const emailHtml = generateEmailHtml(data, analysis);
+        await sendEmailViaResend(data, emailHtml);
+        console.log(`📧 Email envoyé à ${data.email}`);
+      } catch (e) {
+        console.log(`⚠️ Resend erreur (non bloquant):`, e.message);
+      }
+    }
+
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      try {
+        await notifyTelegram(data, analysis);
+        console.log(`📱 Notification Telegram envoyée`);
+      } catch (e) {
+        console.log(`⚠️ Telegram erreur (non bloquant):`, e.message);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Audit enregistré avec succès",
+      auditId: savedAudit?.id,
+      analysis: analysis,
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur dans submit-audit:", error);
+    return res.status(500).json({
+      error: "Une erreur est survenue",
+      details: error.message,
+    });
   }
-}
-
-return res.status(200).json({
-  success: true,
-  message: "Audit enregistré avec succès",
-  auditId: savedAudit?.id,
-  analysis: analysis,
-});
-```
-
-} catch (error) {
-console.error(“❌ Erreur dans submit-audit:”, error);
-return res.status(500).json({
-error: “Une erreur est survenue”,
-details: error.message,
-});
-}
 }
 
 async function analyzeWithClaude(data) {
-const prompt = buildClaudePrompt(data);
+  const prompt = buildClaudePrompt(data);
 
-const response = await fetch(“https://api.anthropic.com/v1/messages”, {
-method: “POST”,
-headers: {
-“x-api-key”: process.env.ANTHROPIC_API_KEY,
-“anthropic-version”: “2023-06-01”,
-“content-type”: “application/json”,
-},
-body: JSON.stringify({
-model: “claude-sonnet-4-20250514”,
-max_tokens: 3000,
-messages: [{ role: “user”, content: prompt }],
-}),
-});
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3000,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
 
-if (!response.ok) {
-const errText = await response.text();
-throw new Error(`Erreur Claude API: ${errText}`);
-}
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Erreur Claude API: ${errText}`);
+  }
 
-const result = await response.json();
-const text = result.content[0].text;
+  const result = await response.json();
+  const text = result.content[0].text;
 
-const cleaned = text.replace(/`json/g, "").replace(/`/g, “”).trim();
-const jsonStart = cleaned.indexOf(”{”);
-const jsonEnd = cleaned.lastIndexOf(”}”) + 1;
-const jsonString = cleaned.substring(jsonStart, jsonEnd);
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}") + 1;
+  const jsonString = cleaned.substring(jsonStart, jsonEnd);
 
-return JSON.parse(jsonString);
+  return JSON.parse(jsonString);
 }
 
 function buildClaudePrompt(data) {
-const labels = {
-business_sector: {
-nautique_location: “Location de bateaux/yachts”,
-nautique_activites: “Activités nautiques (jet ski, plongée, voile)”,
-},
-team_size: { solo: “Solo”, “2_3”: “2-3 personnes”, “4_10”: “4-10 personnes”, “10_plus”: “Plus de 10” },
-channels: {
-instagram_dm: “Instagram DM”, whatsapp: “WhatsApp”, phone: “Téléphone”,
-email: “Email”, website: “Site web”, facebook: “Facebook”,
-},
-weekly_demands: {
-less_20: “Moins de 20”, “20_50”: “20-50”, “50_100”: “50-100”,
-“100_200”: “100-200”, more_200: “Plus de 200”,
-},
-response_time: {
-less_10min: “Moins de 10 min”, “10_60min”: “10min-1h”, “1_6h”: “1-6h”,
-“6_24h”: “6-24h”, more_24h: “Plus d’une journée”,
-},
-current_management: {
-head: “Tout dans la tête”, paper: “Notes papier”, excel: “Excel/Google Sheets”,
-basic_crm: “CRM basique”, advanced_crm: “CRM avancé”,
-},
-avg_basket: {
-less_50: “Moins de 50€”, “50_150”: “50-150€”, “150_400”: “150-400€”,
-“400_1000”: “400-1000€”, “1000_3000”: “1000-3000€”, more_3000: “Plus de 3000€”,
-},
-monthly_revenue: {
-less_5k: “Moins de 5k€”, “5k_15k”: “5-15k€”, “15k_40k”: “15-40k€”,
-“40k_100k”: “40-100k€”, more_100k: “Plus de 100k€”,
-},
-pains: {
-responding_dm: “Répondre aux DM en continu”,
-managing_bookings: “Gérer les réservations”,
-follow_ups: “Relancer les hésitants”,
-tracking: “Suivre leads et historique”,
-all_at_once: “Tout en même temps, débordé”,
-autre: data.main_pain_other || “Autre”,
-},
-goals: {
-free_time: “Gagner du temps libre”, more_leads: “Plus de leads”,
-better_conversion: “Améliorer conversion”, less_stress: “Moins de stress”,
-scale: “Faire grandir le business”, automate: “Automatiser les process”,
-},
-};
+  const labels = {
+    business_sector: {
+      nautique_location: "Location de bateaux/yachts",
+      nautique_activites: "Activités nautiques (jet ski, plongée, voile)",
+    },
+    team_size: { solo: "Solo", "2_3": "2-3 personnes", "4_10": "4-10 personnes", "10_plus": "Plus de 10" },
+    channels: {
+      instagram_dm: "Instagram DM", whatsapp: "WhatsApp", phone: "Téléphone",
+      email: "Email", website: "Site web", facebook: "Facebook",
+    },
+    weekly_demands: {
+      less_20: "Moins de 20", "20_50": "20-50", "50_100": "50-100",
+      "100_200": "100-200", more_200: "Plus de 200",
+    },
+    response_time: {
+      less_10min: "Moins de 10 min", "10_60min": "10min-1h", "1_6h": "1-6h",
+      "6_24h": "6-24h", more_24h: "Plus d'une journée",
+    },
+    current_management: {
+      head: "Tout dans la tête", paper: "Notes papier", excel: "Excel/Google Sheets",
+      basic_crm: "CRM basique", advanced_crm: "CRM avancé",
+    },
+    avg_basket: {
+      less_50: "Moins de 50€", "50_150": "50-150€", "150_400": "150-400€",
+      "400_1000": "400-1000€", "1000_3000": "1000-3000€", more_3000: "Plus de 3000€",
+    },
+    monthly_revenue: {
+      less_5k: "Moins de 5k€", "5k_15k": "5-15k€", "15k_40k": "15-40k€",
+      "40k_100k": "40-100k€", more_100k: "Plus de 100k€",
+    },
+    pains: {
+      responding_dm: "Répondre aux DM en continu",
+      managing_bookings: "Gérer les réservations",
+      follow_ups: "Relancer les hésitants",
+      tracking: "Suivre leads et historique",
+      all_at_once: "Tout en même temps, débordé",
+      autre: data.main_pain_other || "Autre",
+    },
+    goals: {
+      free_time: "Gagner du temps libre", more_leads: "Plus de leads",
+      better_conversion: "Améliorer conversion", less_stress: "Moins de stress",
+      scale: "Faire grandir le business", automate: "Automatiser les process",
+    },
+  };
 
-const sectorLabel = labels.business_sector[data.business_sector] || “Service nautique premium”;
-const channelsLabel = (data.main_channel || []).map(c => labels.channels[c] || c).join(”, “);
-const painsLabel = (data.main_pain || []).map(p => labels.pains[p] || p).join(”, “);
-const goalsLabel = (data.main_goal || []).map(g => labels.goals[g] || g).join(”, “);
+  const sectorLabel = labels.business_sector[data.business_sector] || "Service nautique premium";
+  const channelsLabel = (data.main_channel || []).map(c => labels.channels[c] || c).join(", ");
+  const painsLabel = (data.main_pain || []).map(p => labels.pains[p] || p).join(", ");
+  const goalsLabel = (data.main_goal || []).map(g => labels.goals[g] || g).join(", ");
 
-return `Tu es un expert en analyse digitale pour les entreprises nautiques premium (location de bateaux, yachts, activités nautiques, jet ski, plongée, voile). Tu viens de recevoir un audit gratuit rempli par un prospect et tu dois générer une analyse personnalisée ultra précise.
+  return `Tu es un expert en analyse digitale pour les entreprises nautiques premium (location de bateaux, yachts, activités nautiques, jet ski, plongée, voile). Tu viens de recevoir un audit gratuit rempli par un prospect et tu dois générer une analyse personnalisée ultra précise.
 
 — DONNÉES DU PROSPECT —
 Entreprise : ${data.business_name}
@@ -171,90 +169,88 @@ Objectifs : ${goalsLabel}
 Génère UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant/après) avec cette structure EXACTE :
 
 {
-“maturity_score”: <nombre 0-100 basé sur gestion, canaux, temps de réponse, outils>,
-“score_label”: “<label court : ‘Artisanal’, ‘En transition’, ‘Structuré’, ‘Optimisé’, ‘Excellence’>”,
-“estimated_lost_leads_per_month”: <nombre entier - calcul basé sur volume et temps de réponse>,
-“estimated_lost_revenue_per_month”: <nombre entier en € - leads perdus × panier moyen × taux conversion estimé>,
-“diagnostic”: “<analyse de 3-4 phrases sur la situation actuelle de ${data.business_name}, ton direct entre entrepreneurs nautiques, tutoiement, adapté au secteur ${sectorLabel}. Mentionne les douleurs ressenties (${painsLabel}) avec empathie.>”,
-“reality_check”: “<phrase choc qui fait réaliser le manque à gagner annuel (CA perdu × 12 mois), format : ‘Sur une année complète, ça représente environ X € de revenus qui ne rentrent pas dans ta caisse.’>”,
-“top_3_levers”: [
-“<levier 1 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>”,
-“<levier 2 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>”,
-“<levier 3 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>”
-],
-“recommended_package”: “<‘starter’ | ‘pro’ | ‘premium’ selon taille et CA>”,
-“personal_note”: “<phrase personnalisée de Robin au prospect, type ‘J’ai vu ton business et je pense que…’ - chaleureuse, pas corporate, mentionne ${data.business_name} et fait écho aux objectifs (${goalsLabel})>”
+  "maturity_score": <nombre 0-100 basé sur gestion, canaux, temps de réponse, outils>,
+  "score_label": "<label court : 'Artisanal', 'En transition', 'Structuré', 'Optimisé', 'Excellence'>",
+  "estimated_lost_leads_per_month": <nombre entier - calcul basé sur volume et temps de réponse>,
+  "estimated_lost_revenue_per_month": <nombre entier en € - leads perdus × panier moyen × taux conversion estimé>,
+  "diagnostic": "<analyse de 3-4 phrases sur la situation actuelle de ${data.business_name}, ton direct entre entrepreneurs nautiques, tutoiement, adapté au secteur ${sectorLabel}. Mentionne les douleurs ressenties (${painsLabel}) avec empathie.>",
+  "reality_check": "<phrase choc qui fait réaliser le manque à gagner annuel (CA perdu × 12 mois), format : 'Sur une année complète, ça représente environ X € de revenus qui ne rentrent pas dans ta caisse.'>",
+  "top_3_levers": [
+    "<levier 1 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>",
+    "<levier 2 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>",
+    "<levier 3 concret et actionnable, adapté au secteur nautique et aux douleurs spécifiques>"
+  ],
+  "recommended_package": "<'starter' | 'pro' | 'premium' selon taille et CA>",
+  "personal_note": "<phrase personnalisée de Robin au prospect, type 'J'ai vu ton business et je pense que…' - chaleureuse, pas corporate, mentionne ${data.business_name} et fait écho aux objectifs (${goalsLabel})>"
 }
 
 — RÈGLES DE CALCUL —
-
 1. Score maturité : commence à 20. +10 si CRM avancé, +15 si temps réponse <10min, -15 si tout dans la tête, -10 si réponse >24h, +5 si plusieurs canaux gérés.
-1. Leads perdus/mois = volume hebdo (milieu fourchette) × 4 × % de perte (30-60% selon temps de réponse et gestion)
-1. CA perdu = leads perdus × milieu fourchette panier × taux conversion (20-40%)
-1. Si CA mensuel < 5k€ : “starter”. Si 5-40k€ : “pro”. Si >40k€ : “premium”
-1. Ne JAMAIS mentionner de prix dans les textes
-1. Utiliser le tutoiement partout
-1. Le ton doit être : direct, entrepreneurial, chaleureux, pas corporate
-1. Tout doit être personnalisé au secteur nautique (utilise du vocabulaire métier précis : marina, capitainerie, sorties en mer, saison estivale, clients plaisanciers…)
+2. Leads perdus/mois = volume hebdo (milieu fourchette) × 4 × % de perte (30-60% selon temps de réponse et gestion)
+3. CA perdu = leads perdus × milieu fourchette panier × taux conversion (20-40%)
+4. Si CA mensuel < 5k€ : "starter". Si 5-40k€ : "pro". Si >40k€ : "premium"
+5. Ne JAMAIS mentionner de prix dans les textes
+6. Utiliser le tutoiement partout
+7. Le ton doit être : direct, entrepreneurial, chaleureux, pas corporate
+8. Tout doit être personnalisé au secteur nautique (utilise du vocabulaire métier précis : marina, capitainerie, sorties en mer, saison estivale, clients plaisanciers…)
 
-Réponds UNIQUEMENT avec le JSON, rien d’autre.`;
+Réponds UNIQUEMENT avec le JSON, rien d'autre.`;
 }
 
 async function saveToSupabase(data, analysis) {
-const payload = {
-first_name: data.first_name,
-last_name: data.last_name || null,
-email: data.email,
-phone: data.phone || null,
-business_name: data.business_name,
-instagram_handle: data.instagram_handle || null,
-business_sector: data.business_sector,
-business_sector_other: null,
-team_size: data.team_size,
-main_channel: data.main_channel || [],
-weekly_demands: data.weekly_demands,
-response_time: data.response_time,
-current_management: data.current_management,
-avg_basket: data.avg_basket,
-monthly_revenue: data.monthly_revenue,
-main_pain: data.main_pain || [],
-main_pain_other: data.main_pain_other || null,
-main_goal: data.main_goal || [],
-maturity_score: analysis.maturity_score,
-estimated_lost_leads_per_month: analysis.estimated_lost_leads_per_month,
-estimated_lost_revenue_per_month: analysis.estimated_lost_revenue_per_month,
-recommended_package: analysis.recommended_package,
-claude_analysis: JSON.stringify(analysis),
-top_3_levers: analysis.top_3_levers,
-email_sent: !!(process.env.RESEND_API_KEY && data.email !== “no-email@audit.local”),
-};
+  const payload = {
+    first_name: data.first_name,
+    last_name: data.last_name || null,
+    email: data.email,
+    phone: data.phone || null,
+    business_name: data.business_name,
+    instagram_handle: data.instagram_handle || null,
+    business_sector: data.business_sector,
+    business_sector_other: null,
+    team_size: data.team_size,
+    main_channel: data.main_channel || [],
+    weekly_demands: data.weekly_demands,
+    response_time: data.response_time,
+    current_management: data.current_management,
+    avg_basket: data.avg_basket,
+    monthly_revenue: data.monthly_revenue,
+    main_pain: data.main_pain || [],
+    main_pain_other: data.main_pain_other || null,
+    main_goal: data.main_goal || [],
+    maturity_score: analysis.maturity_score,
+    estimated_lost_leads_per_month: analysis.estimated_lost_leads_per_month,
+    estimated_lost_revenue_per_month: analysis.estimated_lost_revenue_per_month,
+    recommended_package: analysis.recommended_package,
+    claude_analysis: JSON.stringify(analysis),
+    top_3_levers: analysis.top_3_levers,
+    email_sent: !!(process.env.RESEND_API_KEY && data.email !== "no-email@audit.local"),
+  };
 
-const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/audits`, {
-method: “POST”,
-headers: {
-apikey: process.env.SUPABASE_SERVICE_KEY,
-Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-“Content-Type”: “application/json”,
-Prefer: “return=representation”,
-},
-body: JSON.stringify(payload),
-});
+  const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/audits`, {
+    method: "POST",
+    headers: {
+      apikey: process.env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(payload),
+  });
 
-if (!response.ok) {
-const err = await response.text();
-throw new Error(`Erreur Supabase: ${err}`);
-}
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Erreur Supabase: ${err}`);
+  }
 
-const result = await response.json();
-return result[0];
+  const result = await response.json();
+  return result[0];
 }
 
 function generateEmailHtml(data, analysis) {
-const scoreColor = analysis.maturity_score < 30 ? “#ef4444” : analysis.maturity_score < 60 ? “#f59e0b” : “#10b981”;
-const calendlyUrl = process.env.CALENDLY_URL || “https://calendly.com/robinai/decouverte”;
+  const scoreColor = analysis.maturity_score < 30 ? "#ef4444" : analysis.maturity_score < 60 ? "#f59e0b" : "#10b981";
+  const calendlyUrl = process.env.CALENDLY_URL || "https://calendly.com/robinai/decouverte";
 
-return `<!DOCTYPE html>
-
+  return `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -305,58 +301,58 @@ return `<!DOCTYPE html>
 }
 
 async function sendEmailViaResend(data, htmlContent) {
-const response = await fetch(“https://api.resend.com/emails”, {
-method: “POST”,
-headers: {
-Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-“Content-Type”: “application/json”,
-},
-body: JSON.stringify({
-from: process.env.RESEND_FROM_EMAIL || “Robin [onboarding@resend.dev](mailto:onboarding@resend.dev)”,
-to: [data.email],
-subject: `${data.first_name}, ton audit personnalisé pour ${data.business_name}`,
-html: htmlContent,
-}),
-});
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || "Robin <onboarding@resend.dev>",
+      to: [data.email],
+      subject: `${data.first_name}, ton audit personnalisé pour ${data.business_name}`,
+      html: htmlContent,
+    }),
+  });
 
-if (!response.ok) {
-const err = await response.text();
-throw new Error(`Erreur Resend: ${err}`);
-}
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Erreur Resend: ${err}`);
+  }
 
-return response.json();
+  return response.json();
 }
 
 async function notifyTelegram(data, analysis) {
-const scoreEmoji = analysis.maturity_score < 30 ? “🔴” : analysis.maturity_score < 60 ? “🟡” : “🟢”;
-const urgencyEmoji = analysis.estimated_lost_revenue_per_month > 10000 ? “🔥” : “⚡”;
+  const scoreEmoji = analysis.maturity_score < 30 ? "🔴" : analysis.maturity_score < 60 ? "🟡" : "🟢";
+  const urgencyEmoji = analysis.estimated_lost_revenue_per_month > 10000 ? "🔥" : "⚡";
 
-const message = `${urgencyEmoji} *NOUVEL AUDIT RECU*
+  const message = `${urgencyEmoji} *NOUVEL AUDIT RECU*
 
-👤 *${data.first_name} ${data.last_name || “”}*
+👤 *${data.first_name} ${data.last_name || ""}*
 🏢 ${data.business_name}
-📧 ${data.email !== “no-email@audit.local” ? data.email : “*(pas d’email fourni)*”}
-${data.phone ? `📱 ${data.phone}\n` : “”}━━━━━━━━━━━━━━━━━━━━
+📧 ${data.email !== "no-email@audit.local" ? data.email : "_(pas d'email fourni)_"}
+${data.phone ? `📱 ${data.phone}\n` : ""}━━━━━━━━━━━━━━━━━━━━
 📊 *Score :* ${scoreEmoji} ${analysis.maturity_score}/100 (${analysis.score_label})
-💰 *Perte estimée :* ${analysis.estimated_lost_revenue_per_month.toLocaleString(“fr-FR”)} €/mois
+💰 *Perte estimée :* ${analysis.estimated_lost_revenue_per_month.toLocaleString("fr-FR")} €/mois
 📉 *Leads perdus :* ~${analysis.estimated_lost_leads_per_month}/mois
 🎯 *Pack recommandé :* ${analysis.recommended_package?.toUpperCase()}
 
 💬 *Angle de vente :*
 ${analysis.personal_note}`;
 
-const response = await fetch(
-`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-{
-method: “POST”,
-headers: { “Content-Type”: “application/json” },
-body: JSON.stringify({
-chat_id: process.env.TELEGRAM_CHAT_ID,
-text: message,
-parse_mode: “Markdown”,
-}),
-}
-);
+  const response = await fetch(
+    `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: process.env.TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: "Markdown",
+      }),
+    }
+  );
 
-return response.ok;
+  return response.ok;
 }
