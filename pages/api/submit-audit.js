@@ -41,15 +41,6 @@ export default async function handler(req, res) {
       }
     }
 
-    if (process.env.TELEGRAM_BOT_TOKEN) {
-      try {
-        await notifyTelegram(data, analysis);
-        console.log(`📱 Notification Telegram envoyée`);
-      } catch (e) {
-        console.log(`⚠️ Telegram erreur (non bloquant):`, e.message);
-      }
-    }
-
     if (process.env.RESEND_API_KEY) {
       try {
         await notifyOwnerByEmail(data, analysis);
@@ -336,6 +327,10 @@ async function sendEmailViaResend(data, htmlContent) {
 
 async function notifyOwnerByEmail(data, analysis) {
   const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL || "robin.pailhes01@gmail.com";
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!fromEmail) {
+    throw new Error("RESEND_FROM_EMAIL non configuré — domaine vérifié requis pour envoyer à une adresse externe");
+  }
   const scoreColor = analysis.maturity_score < 30 ? "#ef4444" : analysis.maturity_score < 60 ? "#f59e0b" : "#10b981";
   const scoreEmoji = analysis.maturity_score < 30 ? "🔴" : analysis.maturity_score < 60 ? "🟡" : "✅";
 
@@ -409,7 +404,7 @@ async function notifyOwnerByEmail(data, analysis) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "Robin <onboarding@resend.dev>",
+      from: fromEmail,
       to: [ownerEmail],
       subject: `⚡ Nouvel audit — ${data.business_name} (score ${analysis.maturity_score}/100)`,
       html,
@@ -422,38 +417,4 @@ async function notifyOwnerByEmail(data, analysis) {
   }
 
   return response.json();
-}
-
-async function notifyTelegram(data, analysis) {
-  const scoreEmoji = analysis.maturity_score < 30 ? "🔴" : analysis.maturity_score < 60 ? "🟡" : "🟢";
-  const urgencyEmoji = analysis.estimated_lost_revenue_per_month > 10000 ? "🔥" : "⚡";
-
-  const message = `${urgencyEmoji} *NOUVEL AUDIT RECU*
-
-👤 *${data.first_name} ${data.last_name || ""}*
-🏢 ${data.business_name}
-📧 ${data.email !== "no-email@audit.local" ? data.email : "_(pas d'email fourni)_"}
-${data.phone ? `📱 ${data.phone}\n` : ""}━━━━━━━━━━━━━━━━━━━━
-📊 *Score :* ${scoreEmoji} ${analysis.maturity_score}/100 (${analysis.score_label})
-💰 *Perte estimée :* ${analysis.estimated_lost_revenue_per_month.toLocaleString("fr-FR")} €/mois
-📉 *Leads perdus :* ~${analysis.estimated_lost_leads_per_month}/mois
-🎯 *Pack recommandé :* ${analysis.recommended_package?.toUpperCase()}
-
-💬 *Angle de vente :*
-${analysis.personal_note}`;
-
-  const response = await fetch(
-    `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: process.env.TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: "Markdown",
-      }),
-    }
-  );
-
-  return response.ok;
 }
