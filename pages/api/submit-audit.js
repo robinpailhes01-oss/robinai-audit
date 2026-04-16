@@ -50,6 +50,15 @@ export default async function handler(req, res) {
       }
     }
 
+    if (process.env.RESEND_API_KEY) {
+      try {
+        await notifyOwnerByEmail(data, analysis);
+        console.log(`📧 Notification propriétaire envoyée`);
+      } catch (e) {
+        console.log(`⚠️ Notification propriétaire erreur (non bloquant):`, e.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Audit enregistré avec succès",
@@ -314,6 +323,96 @@ async function sendEmailViaResend(data, htmlContent) {
       to: [data.email],
       subject: `${data.first_name}, ton audit personnalisé pour ${data.business_name}`,
       html: htmlContent,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Erreur Resend: ${err}`);
+  }
+
+  return response.json();
+}
+
+async function notifyOwnerByEmail(data, analysis) {
+  const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL || "robin.pailhes01@gmail.com";
+  const scoreColor = analysis.maturity_score < 30 ? "#ef4444" : analysis.maturity_score < 60 ? "#f59e0b" : "#10b981";
+  const scoreEmoji = analysis.maturity_score < 30 ? "🔴" : analysis.maturity_score < 60 ? "🟡" : "✅";
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><title>Nouvel audit reçu</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 20px;">
+<tr><td align="center">
+<table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e0e0e0;">
+  <tr><td style="background:#050f1c;padding:24px 32px;">
+    <h2 style="color:#c9a259;margin:0;font-size:18px;">⚡ Nouvel audit reçu — RobinAI</h2>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="width:50%;padding-bottom:20px;vertical-align:top;">
+          <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Prospect</div>
+          <div style="font-size:16px;font-weight:bold;color:#111;">${data.first_name} ${data.last_name || ""}</div>
+          <div style="font-size:14px;color:#444;margin-top:2px;">${data.business_name}</div>
+          ${data.email !== "no-email@audit.local" ? `<div style="font-size:14px;color:#2563eb;margin-top:4px;">${data.email}</div>` : ""}
+          ${data.phone ? `<div style="font-size:14px;color:#444;margin-top:2px;">${data.phone}</div>` : ""}
+        </td>
+        <td style="width:50%;padding-bottom:20px;vertical-align:top;text-align:right;">
+          <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Score de maturité</div>
+          <div style="font-size:48px;font-weight:bold;color:${scoreColor};line-height:1;">${scoreEmoji} ${analysis.maturity_score}<span style="font-size:20px;color:#999;">/100</span></div>
+          <div style="font-size:13px;color:#666;margin-top:4px;font-style:italic;">${analysis.score_label}</div>
+        </td>
+      </tr>
+    </table>
+    <hr style="border:none;border-top:1px solid #eee;margin:0 0 24px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="width:50%;padding-right:16px;">
+          <div style="background:#fff5f5;border-radius:6px;padding:16px;text-align:center;">
+            <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Leads perdus/mois</div>
+            <div style="font-size:28px;font-weight:bold;color:#ef4444;">~${analysis.estimated_lost_leads_per_month}</div>
+          </div>
+        </td>
+        <td style="width:50%;padding-left:16px;">
+          <div style="background:#fff5f5;border-radius:6px;padding:16px;text-align:center;">
+            <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">CA manqué/mois</div>
+            <div style="font-size:28px;font-weight:bold;color:#ef4444;">${analysis.estimated_lost_revenue_per_month.toLocaleString("fr-FR")} €</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <div style="margin-top:24px;">
+      <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">Pack recommandé</div>
+      <span style="background:#050f1c;color:#c9a259;padding:6px 16px;border-radius:4px;font-size:13px;font-weight:bold;text-transform:uppercase;">${analysis.recommended_package}</span>
+    </div>
+    <div style="margin-top:24px;">
+      <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">Top 3 leviers</div>
+      ${analysis.top_3_levers.map((lever, i) => `<p style="font-size:14px;color:#333;margin:0 0 10px;"><strong style="color:#c9a259;">${i + 1}.</strong> ${lever}</p>`).join("")}
+    </div>
+    <div style="margin-top:24px;background:#f9f9f9;border-radius:6px;padding:20px;">
+      <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Diagnostic</div>
+      <p style="font-size:14px;color:#555;line-height:1.6;margin:0;">${analysis.diagnostic}</p>
+    </div>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || "Robin <onboarding@resend.dev>",
+      to: [ownerEmail],
+      subject: `⚡ Nouvel audit — ${data.business_name} (score ${analysis.maturity_score}/100)`,
+      html,
     }),
   });
 
