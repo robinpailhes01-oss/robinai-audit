@@ -35,8 +35,8 @@ async function sendContactNotification({ business_name, first_name, email, busin
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 20px;">
 <tr><td align="center">
 <table width="540" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e0e0e0;">
-  <tr><td style="background:#050f1c;padding:22px 32px;">
-    <h2 style="color:#c9a259;margin:0;font-size:17px;">📩 Demande de recontact — RobinAI</h2>
+  <tr><td style="background:#dc2626;padding:22px 32px;">
+    <h2 style="color:#fff;margin:0;font-size:17px;">🚨 URGENT — Demande de recontact</h2>
   </td></tr>
   <tr><td style="padding:32px;">
 
@@ -108,7 +108,7 @@ async function sendContactNotification({ business_name, first_name, email, busin
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL,
       to: [ownerEmail],
-      subject: `📩 Recontact demandé — ${business_name || "Prospect"} (score ${maturity_score ?? "??"}/100)`,
+      subject: `🚨 URGENT — ${business_name || "Prospect"} veut être recontacté`,
       html,
     }),
   });
