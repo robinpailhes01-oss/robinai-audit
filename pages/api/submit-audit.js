@@ -469,7 +469,7 @@ async function notifyOwnerByEmail(data, analysis) {
     body: JSON.stringify({
       from: fromEmail,
       to: [ownerEmail],
-      subject: `⚡ Audit — ${data.business_name} · ${analysis.maturity_score}/100 · ${analysis.recommended_package?.toUpperCase()}`,
+      subject: `📊 Nouvel audit — ${data.business_name} · score ${analysis.maturity_score}/100`,
       html,
     }),
   });
