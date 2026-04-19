@@ -635,7 +635,7 @@ function LoadingScreen() {
 }
 
 
-function ContactBlock({ businessName }) {
+function ContactBlock({ businessName, firstName, email, businessSector, maturityScore }) {
   const [answer, setAnswer] = useState(null);
   const [contact, setContact] = useState("");
   const [sent, setSent] = useState(false);
@@ -646,7 +646,15 @@ function ContactBlock({ businessName }) {
       await fetch("/api/contact-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business_name: businessName, contact, answer }),
+        body: JSON.stringify({
+          business_name: businessName,
+          first_name: firstName,
+          email,
+          business_sector: businessSector,
+          maturity_score: maturityScore,
+          contact,
+          answer,
+        }),
       });
     } catch (e) {}
     setSent(true);
@@ -846,7 +854,13 @@ function ResultsPage({ data, analysis, onRestart }) {
             <p style={{ marginTop: 20, marginBottom: 0, color: "#c9a259", fontFamily: "'Cormorant Garamond', serif", fontSize: 17 }}>— Robin</p>
           </div>
 
-          <ContactBlock businessName={data.business_name} />
+          <ContactBlock
+            businessName={data.business_name}
+            firstName={data.first_name}
+            email={data.email}
+            businessSector={data.business_sector}
+            maturityScore={analysis.maturity_score}
+          />
 
           <div className="no-print" style={{ textAlign: "center", marginBottom: 60 }}>
             <button onClick={handlePrint} style={{

@@ -41,12 +41,12 @@ export default async function handler(req, res) {
       }
     }
 
-    if (process.env.TELEGRAM_BOT_TOKEN) {
+    if (process.env.RESEND_API_KEY) {
       try {
-        await notifyTelegram(data, analysis);
-        console.log(`📱 Notification Telegram envoyée`);
+        await notifyOwnerByEmail(data, analysis);
+        console.log(`📧 Notification propriétaire envoyée`);
       } catch (e) {
-        console.log(`⚠️ Telegram erreur (non bloquant):`, e.message);
+        console.log(`⚠️ Notification propriétaire erreur (non bloquant):`, e.message);
       }
     }
 
@@ -325,36 +325,159 @@ async function sendEmailViaResend(data, htmlContent) {
   return response.json();
 }
 
-async function notifyTelegram(data, analysis) {
-  const scoreEmoji = analysis.maturity_score < 30 ? "🔴" : analysis.maturity_score < 60 ? "🟡" : "🟢";
-  const urgencyEmoji = analysis.estimated_lost_revenue_per_month > 10000 ? "🔥" : "⚡";
+async function notifyOwnerByEmail(data, analysis) {
+  const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL || "robin.pailhes01@gmail.com";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  const scoreColor = analysis.maturity_score < 30 ? "#ef4444" : analysis.maturity_score < 60 ? "#f59e0b" : "#10b981";
 
-  const message = `${urgencyEmoji} *NOUVEL AUDIT RECU*
+  const labels = {
+    business_sector: {
+      nautique_location: "Location de bateaux / yachts",
+      nautique_activites: "Activités nautiques (jet ski, plongée, voile)",
+    },
+    team_size: { solo: "Solo", "2_3": "2-3 personnes", "4_10": "4-10 personnes", "10_plus": "Plus de 10" },
+    channels: {
+      instagram_dm: "Instagram DM", whatsapp: "WhatsApp", phone: "Téléphone",
+      email: "Email", website: "Site web", facebook: "Facebook",
+    },
+    weekly_demands: {
+      less_20: "Moins de 20", "20_50": "20-50", "50_100": "50-100",
+      "100_200": "100-200", more_200: "Plus de 200",
+    },
+    response_time: {
+      less_10min: "Moins de 10 min", "10_60min": "10min–1h", "1_6h": "1–6h",
+      "6_24h": "6–24h", more_24h: "Plus d'une journée",
+    },
+    current_management: {
+      head: "Tout dans la tête", paper: "Notes papier", excel: "Excel / Google Sheets",
+      basic_crm: "CRM basique", advanced_crm: "CRM avancé",
+    },
+    avg_basket: {
+      less_50: "Moins de 50 €", "50_150": "50–150 €", "150_400": "150–400 €",
+      "400_1000": "400–1 000 €", "1000_3000": "1 000–3 000 €", more_3000: "Plus de 3 000 €",
+    },
+    monthly_revenue: {
+      less_5k: "Moins de 5 k€", "5k_15k": "5–15 k€", "15k_40k": "15–40 k€",
+      "40k_100k": "40–100 k€", more_100k: "Plus de 100 k€",
+    },
+    pains: {
+      responding_dm: "Répondre aux DM en continu", managing_bookings: "Gérer les réservations",
+      follow_ups: "Relancer les hésitants", tracking: "Suivre leads et historique",
+      all_at_once: "Tout en même temps, débordé",
+    },
+    goals: {
+      free_time: "Gagner du temps libre", more_leads: "Plus de leads",
+      better_conversion: "Améliorer la conversion", less_stress: "Moins de stress",
+      scale: "Faire grandir le business", automate: "Automatiser les process",
+    },
+  };
 
-👤 *${data.first_name} ${data.last_name || ""}*
-🏢 ${data.business_name}
-📧 ${data.email !== "no-email@audit.local" ? data.email : "_(pas d'email fourni)_"}
-${data.phone ? `📱 ${data.phone}\n` : ""}━━━━━━━━━━━━━━━━━━━━
-📊 *Score :* ${scoreEmoji} ${analysis.maturity_score}/100 (${analysis.score_label})
-💰 *Perte estimée :* ${analysis.estimated_lost_revenue_per_month.toLocaleString("fr-FR")} €/mois
-📉 *Leads perdus :* ~${analysis.estimated_lost_leads_per_month}/mois
-🎯 *Pack recommandé :* ${analysis.recommended_package?.toUpperCase()}
+  const row = (label, value) =>
+    `<tr><td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#888;width:42%;vertical-align:top;">${label}</td><td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#1a1a1a;vertical-align:top;">${value || "—"}</td></tr>`;
 
-💬 *Angle de vente :*
-${analysis.personal_note}`;
+  const l = (map, key) => map[key] || key;
+  const lArr = (map, arr) => (arr || []).map(k => map[k] || k).join(", ") || "—";
 
-  const response = await fetch(
-    `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: process.env.TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: "Markdown",
-      }),
-    }
-  );
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
-  return response.ok;
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><title>Nouvel audit</title></head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;border:1px solid #ddd;">
+
+  <!-- Header -->
+  <tr><td style="background:#050f1c;padding:20px 28px;">
+    <h2 style="color:#c9a259;margin:0;font-size:17px;">⚡ Nouvel audit complété — RobinAI</h2>
+    <p style="color:rgba(245,233,208,0.5);margin:4px 0 0;font-size:12px;">${dateStr} à ${timeStr}</p>
+  </td></tr>
+
+  <!-- Identité prospect -->
+  <tr><td style="padding:24px 28px 0;">
+    <p style="margin:0 0 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.12em;">Prospect</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:6px;overflow:hidden;">
+      ${row("Prénom / Nom", `<strong>${data.first_name} ${data.last_name || ""}</strong>`)}
+      ${row("Entreprise", `<strong>${data.business_name}</strong>`)}
+      ${row("Email", data.email !== "no-email@audit.local" ? `<a href="mailto:${data.email}" style="color:#2563eb;">${data.email}</a>` : "<em style='color:#bbb'>Non renseigné</em>")}
+      ${row("Téléphone", data.phone || "<em style='color:#bbb'>Non renseigné</em>")}
+      ${row("Instagram", data.instagram_handle || "<em style='color:#bbb'>Non renseigné</em>")}
+    </table>
+  </td></tr>
+
+  <!-- Score -->
+  <tr><td style="padding:24px 28px 0;">
+    <p style="margin:0 0 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.12em;">Score de maturité</p>
+    <div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;padding:20px;text-align:center;">
+      <span style="font-size:56px;font-weight:bold;color:${scoreColor};line-height:1;">${analysis.maturity_score}</span>
+      <span style="font-size:22px;color:#bbb;">/100</span>
+      <p style="margin:8px 0 0;font-size:15px;color:#555;font-style:italic;">${analysis.score_label}</p>
+    </div>
+  </td></tr>
+
+  <!-- Réponses formulaire -->
+  <tr><td style="padding:24px 28px 0;">
+    <p style="margin:0 0 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.12em;">Réponses au formulaire</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:6px;overflow:hidden;">
+      ${row("Secteur", l(labels.business_sector, data.business_sector))}
+      ${row("Taille équipe", l(labels.team_size, data.team_size))}
+      ${row("Canaux principaux", lArr(labels.channels, data.main_channel))}
+      ${row("Demandes / semaine", l(labels.weekly_demands, data.weekly_demands))}
+      ${row("Temps de réponse", l(labels.response_time, data.response_time))}
+      ${row("Gestion actuelle", l(labels.current_management, data.current_management))}
+      ${row("Panier moyen", l(labels.avg_basket, data.avg_basket))}
+      ${row("CA mensuel (haute saison)", l(labels.monthly_revenue, data.monthly_revenue))}
+      ${row("Douleurs principales", lArr(labels.pains, data.main_pain) + (data.main_pain_other ? `, ${data.main_pain_other}` : ""))}
+      ${row("Objectifs", lArr(labels.goals, data.main_goal))}
+    </table>
+  </td></tr>
+
+  <!-- Analyse Claude -->
+  <tr><td style="padding:24px 28px 0;">
+    <p style="margin:0 0 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.12em;">Analyse Claude</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:6px;overflow:hidden;">
+      ${row("Leads perdus / mois", `<strong style="color:#ef4444;">~${analysis.estimated_lost_leads_per_month}</strong>`)}
+      ${row("CA manqué / mois", `<strong style="color:#ef4444;">${analysis.estimated_lost_revenue_per_month.toLocaleString("fr-FR")} €</strong>`)}
+      ${row("Pack recommandé", `<strong style="color:#c9a259;text-transform:uppercase;">${analysis.recommended_package}</strong>`)}
+      ${row("Levier 1", analysis.top_3_levers[0])}
+      ${row("Levier 2", analysis.top_3_levers[1])}
+      ${row("Levier 3", analysis.top_3_levers[2])}
+    </table>
+  </td></tr>
+
+  <!-- Diagnostic -->
+  <tr><td style="padding:20px 28px;">
+    <p style="margin:0 0 10px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.12em;">Diagnostic</p>
+    <p style="margin:0;font-size:14px;color:#444;line-height:1.7;background:#fafafa;border-left:3px solid #c9a259;padding:14px 16px;border-radius:0 4px 4px 0;">${analysis.diagnostic}</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [ownerEmail],
+      subject: `⚡ Audit — ${data.business_name} · ${analysis.maturity_score}/100 · ${analysis.recommended_package?.toUpperCase()}`,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Resend: ${err}`);
+  }
+
+  return response.json();
 }
