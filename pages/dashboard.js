@@ -279,13 +279,14 @@ function ProspectsTab({ prospects, loading, onStatusChange }) {
   );
 }
 
-function ScraperTab() {
+function ScraperTab({ onProspectsAdded }) {
   const [region, setRegion] = useState("Côte d'Azur");
   const [maxResults, setMaxResults] = useState(20);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [step, setStep] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
 
   const regions = ["Côte d'Azur", "Provence", "Bretagne", "Normandie", "Languedoc", "Corse", "Pays Basque", "France entière"];
 
@@ -293,39 +294,43 @@ function ScraperTab() {
     setRunning(true);
     setResult(null);
     setError(null);
+    setElapsed(0);
+    const timer = setInterval(() => setElapsed(e => e + 1), 1000);
+
     try {
-      setStep("🔍 Scraping Google Maps...");
-      const scrapeRes = await fetch("/api/scraper/run", {
+      setStep("🚀 Lancement du scraper Apify...");
+      const startRes = await fetch("/api/scraper/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ region, maxResults }),
       });
-      const scrapeData = await scrapeRes.json();
-      if (!scrapeRes.ok) throw new Error(scrapeData.error);
+      const { runId, error: startErr } = await startRes.json();
+      if (startErr) throw new Error(startErr);
 
-      setStep("🧠 Analyse Claude + rédaction emails...");
-      const analyzeRes = await fetch("/api/scraper/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prospectIds: scrapeData.ids }),
-      });
-      const analyzeData = await analyzeRes.json();
-      if (!analyzeRes.ok) throw new Error(analyzeData.error);
+      setStep("🔍 Scraping Google Maps en cours...");
+      let attempts = 0;
+      while (attempts < 60) {
+        await sleep(5000);
+        attempts++;
+        const statusRes = await fetch(`/api/scraper/status?runId=${runId}&maxResults=${maxResults}&region=${encodeURIComponent(region)}`);
+        const statusData = await statusRes.json();
 
-      setStep("📧 Envoi des emails d'approche...");
-      const sendRes = await fetch("/api/scraper/send-outreach", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prospectIds: scrapeData.ids }),
-      });
-      const sendData = await sendRes.json();
-
-      setResult({ scraped: scrapeData.count, analyzed: analyzeData.count, sent: sendData.sent });
-      setStep(null);
+        if (statusData.status === "failed") throw new Error(statusData.error || "Scraper échoué");
+        if (statusData.status === "done") {
+          setStep("🧠 Claude rédige les emails d'approche...");
+          await sleep(3000);
+          setResult({ scraped: statusData.count, ids: statusData.ids });
+          onProspectsAdded?.();
+          break;
+        }
+        if (attempts % 6 === 0) setStep(`🔍 Scraping en cours... (${attempts * 5}s)`);
+      }
+      if (attempts >= 60) throw new Error("Timeout — le scraper a pris trop longtemps");
     } catch (e) {
       setError(e.message);
-      setStep(null);
     }
+    clearInterval(timer);
+    setStep(null);
     setRunning(false);
   }
 
@@ -333,7 +338,7 @@ function ScraperTab() {
     <div style={{ maxWidth: 600 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 6 }}>Lancer le scraper</h1>
       <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>
-        Trouve les entreprises nautiques, analyse leur présence en ligne et envoie un email d'approche personnalisé.
+        Trouve les entreprises nautiques, analyse leur présence en ligne et génère un email d'approche personnalisé pour chacune.
       </p>
 
       <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 28, marginBottom: 20 }}>
@@ -341,11 +346,11 @@ function ScraperTab() {
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Zone géographique</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {regions.map(r => (
-              <button key={r} onClick={() => setRegion(r)} style={{
+              <button key={r} onClick={() => setRegion(r)} disabled={running} style={{
                 padding: "7px 14px", borderRadius: 8, border: "1px solid #e5e7eb",
                 background: region === r ? "#0f172a" : "#fff",
                 color: region === r ? "#fff" : "#374151",
-                fontSize: 13, cursor: "pointer", fontWeight: region === r ? 600 : 400,
+                fontSize: 13, cursor: running ? "not-allowed" : "pointer", fontWeight: region === r ? 600 : 400,
               }}>{r}</button>
             ))}
           </div>
@@ -355,7 +360,8 @@ function ScraperTab() {
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
             Nombre de résultats : <span style={{ color: "#6366f1" }}>{maxResults}</span>
           </label>
-          <input type="range" min={5} max={50} value={maxResults} onChange={e => setMaxResults(Number(e.target.value))}
+          <input type="range" min={5} max={50} value={maxResults} disabled={running}
+            onChange={e => setMaxResults(Number(e.target.value))}
             style={{ width: "100%", accentColor: "#6366f1" }} />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
             <span>5</span><span>50</span>
@@ -363,10 +369,61 @@ function ScraperTab() {
         </div>
 
         <div style={{ background: "#f8fafc", borderRadius: 8, padding: 16, marginBottom: 24, fontSize: 13, color: "#475569" }}>
-          <strong>Ce que ça va faire :</strong>
-          <ol style={{ margin: "8px 0 0 16px", lineHeight: 1.8 }}>
-            <li>Scraper Google Maps → entreprises nautiques en <strong>{region}</strong></li>
-            <li>Analyser leur site web, avis Google, Instagram</li>
+          <strong>Ce que ça fait automatiquement :</strong>
+          <ol style={{ margin: "8px 0 0 16px", lineHeight: 1.9 }}>
+            <li>Scrape Google Maps → entreprises nautiques en <strong>{region}</strong></li>
+            <li>Récupère : nom, adresse, téléphone, site web, note Google, avis</li>
+            <li>Claude rédige un email d'approche personnalisé pour chacun</li>
+            <li>Resend envoie automatiquement (si email disponible)</li>
+          </ol>
+        </div>
+
+        {running && (
+          <div style={{ marginBottom: 20, background: "#eff6ff", borderRadius: 8, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 16, height: 16, border: "2px solid #3b82f6", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              <span style={{ fontSize: 14, color: "#1d4ed8", fontWeight: 500 }}>{step}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#60a5fa", marginTop: 8 }}>Temps écoulé : {elapsed}s — patience, Google Maps prend 1-3 minutes</div>
+          </div>
+        )}
+
+        <button onClick={runScraper} disabled={running} style={{
+          width: "100%", padding: "14px 24px", borderRadius: 10, border: "none",
+          background: running ? "#e5e7eb" : "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+          color: running ? "#9ca3af" : "#c9a259", fontSize: 15, fontWeight: 700,
+          cursor: running ? "not-allowed" : "pointer", letterSpacing: "0.05em",
+        }}>
+          {running ? "En cours..." : `⚡ Lancer sur ${region}`}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 16, color: "#991b1b", fontSize: 14 }}>
+          ❌ {error}
+        </div>
+      )}
+
+      {result && (
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 24 }}>
+          <div style={{ fontWeight: 700, color: "#166534", marginBottom: 16, fontSize: 16 }}>✅ Scraping terminé !</div>
+          <div style={{ display: "flex", gap: 24 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: "#166534" }}>{result.scraped}</div>
+              <div style={{ fontSize: 13, color: "#4b7c63" }}>entreprises trouvées</div>
+            </div>
+          </div>
+          <p style={{ marginTop: 16, fontSize: 13, color: "#4b7c63" }}>
+            Les emails d'approche sont générés en arrière-plan. Consulte l'onglet <strong>Prospects scrapés</strong> dans quelques instants.
+          </p>
+        </div>
+      )}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
             <li>Claude rédige un email d'approche chaleureux pour chacun</li>
             <li>Resend envoie automatiquement (si email disponible)</li>
           </ol>
@@ -455,7 +512,9 @@ export default function Dashboard() {
         <main style={{ flex: 1, padding: "32px 36px", overflowX: "auto" }}>
           {active === "audits" && <AuditsTab audits={audits} loading={loadingAudits} />}
           {active === "prospects" && <ProspectsTab prospects={prospects} loading={loadingProspects} onStatusChange={handleStatusChange} />}
-          {active === "scraper" && <ScraperTab />}
+          {active === "scraper" && <ScraperTab onProspectsAdded={() => {
+            fetch("/api/dashboard/prospects").then(r => r.json()).then(d => setProspects(d.prospects || []));
+          }} />}
         </main>
       </div>
     </>

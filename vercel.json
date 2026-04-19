@@ -6,8 +6,9 @@
   "outputDirectory": ".next",
   "regions": ["cdg1"],
   "functions": {
-    "pages/api/submit-audit.js": {
-      "maxDuration": 60
-    }
+    "pages/api/submit-audit.js": { "maxDuration": 60 },
+    "pages/api/scraper/status.js": { "maxDuration": 60 },
+    "pages/api/scraper/analyze.js": { "maxDuration": 60 },
+    "pages/api/scraper/send-outreach.js": { "maxDuration": 60 }
   }
 }
