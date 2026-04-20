@@ -309,7 +309,7 @@ function ScraperTab({ onProspectsAdded }) {
 
       setStep("🔍 Scraping Google Maps en cours...");
       let attempts = 0;
-      while (attempts < 60) {
+      while (attempts < 120) {
         await sleep(5000);
         attempts++;
         const statusRes = await fetch(`/api/scraper/status?runId=${runId}&maxResults=${maxResults}&region=${encodeURIComponent(region)}`);
@@ -325,7 +325,7 @@ function ScraperTab({ onProspectsAdded }) {
         }
         if (attempts % 6 === 0) setStep(`🔍 Scraping en cours... (${attempts * 5}s)`);
       }
-      if (attempts >= 60) throw new Error("Timeout — le scraper a pris trop longtemps");
+      if (attempts >= 120) throw new Error("Timeout — le scraper a pris trop longtemps (>10 min)");
     } catch (e) {
       setError(e.message);
     }
