@@ -10,7 +10,8 @@ export default async function handler(req, res) {
   );
 
   if (!statusRes.ok) {
-    return res.status(200).json({ status: "running" });
+    const errBody = await statusRes.text();
+    return res.status(200).json({ status: "failed", error: `Apify status error (${statusRes.status}): ${errBody}` });
   }
 
   const statusData = await statusRes.json();

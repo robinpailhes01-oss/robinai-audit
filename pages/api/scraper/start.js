@@ -3,8 +3,9 @@ export default async function handler(req, res) {
 
   const { region = "Côte d'Azur", maxResults = 20 } = req.body;
 
+  // Use official Apify Google Maps scraper
   const runRes = await fetch(
-    `https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${process.env.APIFY_API_TOKEN}`,
+    `https://api.apify.com/v2/acts/apify~google-maps-scraper/runs?token=${process.env.APIFY_API_TOKEN}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -12,24 +13,30 @@ export default async function handler(req, res) {
         searchStringsArray: [
           `location bateau ${region}`,
           `activités nautiques ${region}`,
-          `jet ski ${region}`,
+          `jet ski location ${region}`,
         ],
-        maxCrawledPlaces: maxResults,
+        maxCrawledPlacesPerSearch: Math.ceil(maxResults / 3),
         language: "fr",
         countryCode: "fr",
         includeReviews: false,
+        includeImages: false,
       }),
     }
   );
 
+  const runBody = await runRes.text();
+
   if (!runRes.ok) {
-    const err = await runRes.text();
-    return res.status(500).json({ error: `Apify start failed: ${err}` });
+    return res.status(500).json({ error: `Apify start failed (${runRes.status}): ${runBody}` });
   }
 
-  const run = await runRes.json();
+  let run;
+  try { run = JSON.parse(runBody); } catch {
+    return res.status(500).json({ error: `Apify réponse invalide: ${runBody}` });
+  }
+
   const runId = run.data?.id;
-  if (!runId) return res.status(500).json({ error: `Pas d'ID de run — réponse: ${JSON.stringify(run)}` });
+  if (!runId) return res.status(500).json({ error: `Pas d'ID de run — réponse: ${runBody}` });
 
   return res.status(200).json({ runId, region, maxResults });
 }
