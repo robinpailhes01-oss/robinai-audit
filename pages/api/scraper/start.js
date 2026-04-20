@@ -12,14 +12,12 @@ export default async function handler(req, res) {
         searchStringsArray: [
           `location bateau ${region}`,
           `activités nautiques ${region}`,
-          `jet ski location ${region}`,
-          `yacht charter ${region}`,
+          `jet ski ${region}`,
         ],
-        maxCrawledPlacesPerSearch: Math.ceil(maxResults / 4),
+        maxCrawledPlaces: maxResults,
         language: "fr",
         countryCode: "fr",
         includeReviews: false,
-        additionalInfo: true,
       }),
     }
   );
@@ -31,7 +29,7 @@ export default async function handler(req, res) {
 
   const run = await runRes.json();
   const runId = run.data?.id;
-  if (!runId) return res.status(500).json({ error: "Pas d'ID de run Apify" });
+  if (!runId) return res.status(500).json({ error: `Pas d'ID de run — réponse: ${JSON.stringify(run)}` });
 
   return res.status(200).json({ runId, region, maxResults });
 }

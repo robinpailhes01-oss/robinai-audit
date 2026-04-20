@@ -4,28 +4,39 @@ export default async function handler(req, res) {
   const { runId, maxResults = 20, region = "" } = req.query;
   if (!runId) return res.status(400).json({ error: "runId requis" });
 
+  // Correct endpoint: actor-runs (not acts/actor/runs)
   const statusRes = await fetch(
-    `https://api.apify.com/v2/acts/compass~crawler-google-places/runs/${runId}?token=${process.env.APIFY_API_TOKEN}`
+    `https://api.apify.com/v2/actor-runs/${runId}?token=${process.env.APIFY_API_TOKEN}`
   );
+
+  if (!statusRes.ok) {
+    return res.status(200).json({ status: "running" });
+  }
+
   const statusData = await statusRes.json();
-  const status = statusData.data?.status;
+  const apifyStatus = statusData.data?.status;
 
-  if (status === "RUNNING" || status === "READY" || status === "ABORTING") {
+  if (!apifyStatus || ["RUNNING", "READY", "ABORTING"].includes(apifyStatus)) {
     return res.status(200).json({ status: "running" });
   }
 
-  if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
-    return res.status(200).json({ status: "failed", error: `Apify run ${status}` });
+  if (["FAILED", "ABORTED", "TIMED-OUT"].includes(apifyStatus)) {
+    return res.status(200).json({ status: "failed", error: `Apify run ${apifyStatus}` });
   }
 
-  if (status !== "SUCCEEDED") {
+  if (apifyStatus !== "SUCCEEDED") {
     return res.status(200).json({ status: "running" });
   }
 
-  // Run succeeded — fetch results
+  // Correct endpoint: actor-runs/{runId}/dataset/items
   const itemsRes = await fetch(
-    `https://api.apify.com/v2/acts/compass~crawler-google-places/runs/${runId}/dataset/items?token=${process.env.APIFY_API_TOKEN}&limit=${maxResults}`
+    `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${process.env.APIFY_API_TOKEN}&limit=${maxResults}&format=json`
   );
+
+  if (!itemsRes.ok) {
+    return res.status(200).json({ status: "failed", error: "Impossible de récupérer les items Apify" });
+  }
+
   const items = await itemsRes.json();
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -33,29 +44,33 @@ export default async function handler(req, res) {
   }
 
   const prospects = items
-    .filter(p => p.title && (p.address || p.city))
+    .filter(p => p.title)
     .map(p => ({
       business_name: p.title,
-      address: p.address || null,
+      address: p.address || p.street || null,
       city: p.city || extractCity(p.address) || region,
-      phone: p.phone || null,
+      phone: p.phone || p.phoneNumber || null,
       website: p.website || null,
       email: p.email || null,
-      rating: p.totalScore || null,
-      reviews_count: p.reviewsCount || null,
+      rating: p.totalScore ?? p.rating ?? null,
+      reviews_count: p.reviewsCount ?? p.reviewCount ?? null,
       google_maps_url: p.url || null,
-      categories: p.categoryName || null,
+      categories: p.categoryName || (Array.isArray(p.categories) ? p.categories[0] : null) || null,
       status: "new",
       source: "apify_google_maps",
       region,
     }));
 
+  if (prospects.length === 0) {
+    return res.status(200).json({ status: "done", count: 0, ids: [] });
+  }
+
   const saved = await saveToSupabase(prospects);
   const ids = saved.map(p => p.id).filter(Boolean);
 
-  // Trigger analysis in background (non-blocking)
   if (ids.length > 0) {
-    fetch(`${getBaseUrl(req)}/api/scraper/analyze`, {
+    const base = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers["x-forwarded-host"] || req.headers.host}`;
+    fetch(`${base}/api/scraper/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prospectIds: ids }),
@@ -77,17 +92,14 @@ async function saveToSupabase(prospects) {
     },
     body: JSON.stringify(prospects),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    console.error("Supabase save error:", await res.text());
+    return [];
+  }
   return res.json();
 }
 
 function extractCity(address = "") {
   const parts = (address || "").split(",");
   return parts[parts.length - 2]?.trim() || null;
-}
-
-function getBaseUrl(req) {
-  const proto = req.headers["x-forwarded-proto"] || "https";
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
-  return `${proto}://${host}`;
 }
