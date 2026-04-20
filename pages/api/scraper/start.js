@@ -3,23 +3,22 @@ export default async function handler(req, res) {
 
   const { region = "Côte d'Azur", maxResults = 20 } = req.body;
 
-  // Use official Apify Google Maps scraper
   const runRes = await fetch(
-    `https://api.apify.com/v2/acts/apify~google-maps-scraper/runs?token=${process.env.APIFY_API_TOKEN}`,
+    `https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${process.env.APIFY_API_TOKEN}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        searchStringsArray: [
+        queries: [
           `location bateau ${region}`,
           `activités nautiques ${region}`,
           `jet ski location ${region}`,
         ],
-        maxCrawledPlacesPerSearch: Math.ceil(maxResults / 3),
+        maxCrawledPlaces: Math.ceil(maxResults / 3),
         language: "fr",
-        countryCode: "fr",
-        includeReviews: false,
-        includeImages: false,
+        country: "FR",
+        maxImages: 0,
+        maxReviews: 0,
       }),
     }
   );
