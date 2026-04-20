@@ -424,50 +424,6 @@ function ScraperTab({ onProspectsAdded }) {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-            <li>Claude rédige un email d'approche chaleureux pour chacun</li>
-            <li>Resend envoie automatiquement (si email disponible)</li>
-          </ol>
-        </div>
-
-        <button onClick={runScraper} disabled={running} style={{
-          width: "100%", padding: "14px 24px", borderRadius: 10, border: "none",
-          background: running ? "#e5e7eb" : "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-          color: running ? "#9ca3af" : "#c9a259", fontSize: 15, fontWeight: 700,
-          cursor: running ? "not-allowed" : "pointer", letterSpacing: "0.05em",
-          transition: "all 0.2s",
-        }}>
-          {running ? step || "En cours..." : `⚡ Lancer sur ${region}`}
-        </button>
-      </div>
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 16, color: "#991b1b", fontSize: 14 }}>
-          ❌ {error}
-        </div>
-      )}
-
-      {result && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 20 }}>
-          <div style={{ fontWeight: 700, color: "#166534", marginBottom: 12, fontSize: 15 }}>✅ Terminé !</div>
-          <div style={{ display: "flex", gap: 20 }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#166534" }}>{result.scraped}</div>
-              <div style={{ fontSize: 12, color: "#4b7c63" }}>scrapés</div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#166534" }}>{result.analyzed}</div>
-              <div style={{ fontSize: 12, color: "#4b7c63" }}>analysés</div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#166534" }}>{result.sent}</div>
-              <div style={{ fontSize: 12, color: "#4b7c63" }}>emails envoyés</div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const [active, setActive] = useState("audits");
