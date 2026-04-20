@@ -1,7 +1,10 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { region = "Côte d'Azur", maxResults = 20 } = req.body;
+  const { region = "Côte d'Azur", maxResults = 15 } = req.body;
+
+  // Hard cap at 5 per query (3 queries = 15 max) to keep runs under 5 min
+  const perQuery = Math.min(Math.ceil(maxResults / 3), 5);
 
   const runRes = await fetch(
     `https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${process.env.APIFY_API_TOKEN}`,
@@ -14,7 +17,8 @@ export default async function handler(req, res) {
           `activités nautiques ${region}`,
           `jet ski location ${region}`,
         ],
-        maxCrawledPlaces: Math.ceil(maxResults / 3),
+        maxCrawledPlacesPerSearch: perQuery,
+        maxCrawledPlaces: perQuery * 3,
         language: "fr",
         country: "FR",
         maxImages: 0,
