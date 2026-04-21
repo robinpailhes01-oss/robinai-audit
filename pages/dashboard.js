@@ -179,8 +179,58 @@ function AuditsTab({ audits, loading }) {
   );
 }
 
+function EmailDraftModal({ prospect, onClose }) {
+  if (!prospect) return null;
+  let draft = null;
+  try { draft = JSON.parse(prospect.email_draft); } catch { draft = { subject: "—", body: prospect.email_draft }; }
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "#fff", borderRadius: 16, width: "100%", maxWidth: 620,
+        maxHeight: "85vh", overflow: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)",
+      }}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Email généré par Claude</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>{prospect.business_name}</div>
+            {prospect.city && <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{prospect.city}</div>}
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: "#9ca3af", cursor: "pointer", lineHeight: 1 }}>✕</button>
+        </div>
+
+        <div style={{ padding: "20px 28px", borderBottom: "1px solid #f3f4f6" }}>
+          <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Objet</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", background: "#f8fafc", padding: "10px 14px", borderRadius: 8 }}>
+            {draft?.subject || "—"}
+          </div>
+        </div>
+
+        <div style={{ padding: "20px 28px" }}>
+          <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Corps du message</div>
+          <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, whiteSpace: "pre-wrap", background: "#f8fafc", padding: "16px 18px", borderRadius: 8 }}>
+            {draft?.body || "—"}
+          </div>
+        </div>
+
+        {prospect.email && (
+          <div style={{ padding: "0 28px 24px", display: "flex", gap: 10 }}>
+            <div style={{ fontSize: 12, color: "#6b7280", background: "#f3f4f6", padding: "6px 12px", borderRadius: 6 }}>
+              📧 Destinataire : {prospect.email}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProspectsTab({ prospects, loading, onStatusChange }) {
   const [search, setSearch] = useState("");
+  const [draftProspect, setDraftProspect] = useState(null);
   const filtered = prospects.filter(p => {
     const q = search.toLowerCase();
     return !q || p.business_name?.toLowerCase().includes(q) || p.city?.toLowerCase().includes(q);
@@ -211,6 +261,8 @@ function ProspectsTab({ prospects, loading, onStatusChange }) {
           fontSize: 14, outline: "none", width: 240, background: "#fff",
         }} />
       </div>
+
+      <EmailDraftModal prospect={draftProspect} onClose={() => setDraftProspect(null)} />
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "#9ca3af" }}>Chargement...</div>
@@ -256,7 +308,13 @@ function ProspectsTab({ prospects, loading, onStatusChange }) {
                   </td>
                   <td style={{ padding: "14px 16px" }}><StatusBadge status={p.status || "new"} /></td>
                   <td style={{ padding: "14px 16px" }}>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {p.email_draft && (
+                        <button onClick={() => setDraftProspect(p)} style={{
+                          padding: "5px 10px", borderRadius: 6, border: "1px solid #6366f1",
+                          background: "#eef2ff", color: "#4338ca", fontSize: 12, cursor: "pointer", fontWeight: 500,
+                        }}>👁 Voir</button>
+                      )}
                       {p.email_draft && p.status !== "contacted" && (
                         <button onClick={() => onStatusChange(p.id, "contacted")} style={{
                           padding: "5px 10px", borderRadius: 6, border: "1px solid #22c55e",
